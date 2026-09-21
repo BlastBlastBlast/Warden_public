@@ -128,4 +128,88 @@ else
   fi
 fi
 
+# C-1 regression. A path that is not a readable archive must stop the restore
+# before the deletion loop, and leave the configuration directory whole.
+harness_teardown
+harness_setup
+
+printf 'before\n' > "$HOME/.claude/settings.json"
+printf 'keep me\n' > "$HOME/.claude/my-notes.md"
+"$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook >/dev/null 2>&1
+
+not_an_archive="$HARNESS_TMP/not-an-archive.tar.gz"
+printf 'this is a text file with a tempting name\n' > "$not_an_archive"
+
+before_listing=$(ls -1a "$HOME/.claude")
+before_archives=$(ls -1 "$HOME/.warden-backups" | wc -l | tr -d ' ')
+
+out=$("$REPO_DIR/uninstall.sh" --from-archive "$not_an_archive" 2>&1)
+rc=$?
+
+if [ "$rc" -ne 0 ]; then
+  pass "a file that is not an archive exits non-zero"
+else
+  fail "a file that is not an archive exited 0"
+fi
+# Assert the message too: uninstall.sh has other non-zero paths, and a bare
+# rc-ne-0 check would pass if a different guard fired instead.
+assert_contains "$out" "not a readable archive"
+case "$out" in
+  *"restored from"*) fail "the failed restore reported success" ;;
+  *) pass "the failed restore reported no success" ;;
+esac
+
+after_listing=$(ls -1a "$HOME/.claude")
+if [ "$before_listing" = "$after_listing" ]; then
+  pass "the configuration directory is intact"
+else
+  fail "the configuration directory changed: '$before_listing' -> '$after_listing'"
+fi
+assert_file "$HOME/.claude/my-notes.md"
+assert_link "$HOME/.claude/settings.json" "$REPO_DIR/settings.json"
+
+# The per-path backup layer survives: the deletion loop would have removed it.
+kept=$(ls "$HOME/.claude/"settings.json.warden-backup-* 2>/dev/null | head -1)
+if [ -n "$kept" ] && grep -q before "$kept"; then
+  pass "the per-path backup survives at $kept"
+else
+  fail "the per-path backup was lost"
+fi
+
+after_archives=$(ls -1 "$HOME/.warden-backups" | wc -l | tr -d ' ')
+if [ "$before_archives" = "$after_archives" ]; then
+  pass "the failed restore took no safety archive"
+else
+  fail "the failed restore archived: $before_archives -> $after_archives"
+fi
+
+# C-1 regression. A removal the restore cannot make stops it, rather than
+# carrying on to extract over a half-emptied directory.
+harness_teardown
+harness_setup
+
+printf 'before\n' > "$HOME/.claude/settings.json"
+out=$("$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook 2>&1)
+archive=$(printf '%s\n' "$out" | sed -n 's/^archive: //p' | tail -1)
+
+if [ "$(id -u)" = "0" ]; then
+  pass "skipped under root: chmod cannot force a removal failure"
+else
+  chmod 555 "$HOME/.claude"
+  out=$("$REPO_DIR/uninstall.sh" --from-archive "$archive" 2>&1)
+  rc=$?
+  chmod 755 "$HOME/.claude"
+
+  if [ "$rc" -ne 0 ]; then
+    pass "a failed removal exits non-zero"
+  else
+    fail "a failed removal exited 0"
+  fi
+  assert_contains "$out" "could not remove"
+  case "$out" in
+    *"restored from"*) fail "the failed restore reported success" ;;
+    *) pass "the failed restore reported no success" ;;
+  esac
+fi
+
 harness_exit

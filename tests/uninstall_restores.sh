@@ -66,4 +66,25 @@ else
   fail "the uninstaller restored the wrong backup"
 fi
 
+# Deferred minor 13. --dry-run in link mode prints the plan and removes nothing.
+harness_teardown
+harness_setup
+printf '{"theme":"dark"}\n' > "$HOME/.claude/settings.json"
+"$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook >/dev/null 2>&1
+
+out=$("$REPO_DIR/uninstall.sh" --dry-run 2>&1)
+
+assert_contains "$out" "would unlink: $HOME/.claude/CLAUDE.md"
+assert_link "$HOME/.claude/CLAUDE.md" "$REPO_DIR/CLAUDE.md"
+assert_link "$HOME/.claude/settings.json" "$REPO_DIR/settings.json"
+assert_link "$HOME/.claude/docs/references" "$REPO_DIR/docs/references"
+assert_link "$HOME/.local/bin/warden-handoff" "$REPO_DIR/bin/warden-handoff"
+# The displaced file is still under its backup name: nothing was moved back.
+kept=$(ls "$HOME/.claude/"settings.json.warden-backup-* 2>/dev/null | head -1)
+if [ -n "$kept" ]; then
+  pass "the dry run left the backup in place at $kept"
+else
+  fail "the dry run moved the backup back"
+fi
+
 harness_exit

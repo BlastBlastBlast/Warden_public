@@ -28,7 +28,7 @@ warden_die() {
 warden_run() {
   local desc="$1"; shift
   if [ "${WARDEN_DRY_RUN:-0}" = "1" ]; then
-    warden_say "would: $desc"
+    warden_say "would $desc"
     return 0
   fi
   warden_say "$desc"

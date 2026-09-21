@@ -32,8 +32,12 @@ done
 export WARDEN_DRY_RUN
 
 restore_from_archive() {
-  local archive="$1" parent base ex tmp new_archive
+  local archive="$1" parent base ex entry skip new_archive=""
   [ -f "$archive" ] || warden_die "no such archive: $archive"
+  # Read the archive before deleting anything it is meant to put back. A path
+  # that is not a readable archive must stop the restore here, while the
+  # configuration directory is still whole.
+  tar tzf "$archive" >/dev/null 2>&1 || warden_die "not a readable archive: $archive"
   # REQ-4.5.2
   warden_say "archiving the current state first"
   if [ "$WARDEN_DRY_RUN" = "1" ]; then
@@ -53,11 +57,12 @@ restore_from_archive() {
       [ "$base" = "$ex" ] && skip=1
     done
     [ "$skip" = "1" ] && continue
-    warden_run "remove: $entry" rm -rf "$entry"
+    warden_run "remove: $entry" rm -rf "$entry" || warden_die "could not remove $entry"
   done
 
   parent=$(dirname "$CFG")
-  warden_run "restore: $archive -> $CFG" tar xzf "$archive" -C "$parent"
+  warden_run "restore: $archive -> $CFG" tar xzf "$archive" -C "$parent" \
+    || warden_die "the restore failed. Your previous state is in ${new_archive:-$(warden_backup_dir)}"
   warden_say "restored from $archive"
 }
 
@@ -86,7 +91,8 @@ unlink_one() {
   # REQ-4.2. The newest backup wins, and the names sort by time.
   newest=$(ls -1 "$link".warden-backup-* 2>/dev/null | sort | tail -1)
   if [ -n "$newest" ]; then
-    warden_run "restore: $newest -> $link" mv "$newest" "$link"
+    warden_run "restore: $newest -> $link" mv "$newest" "$link" \
+      || warden_die "could not restore $newest to $link"
   fi
 }
 
