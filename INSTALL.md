@@ -16,8 +16,11 @@ ls -la "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" 2>/dev/null | head -40
 
 Say all of this, in your own words, before you write anything:
 
-1. The installer archives their whole Claude configuration directory to
-   `$HOME/.warden-backups/claude-<timestamp>.tar.gz`. Name the exact directory.
+1. The installer archives their Claude configuration directory to
+   `$HOME/.warden-backups/claude-<timestamp>.tar.gz`, before it changes anything. Name the exact
+   directory. The archive does not include `projects`, `sessions`, `shell-snapshots`,
+   `paste-cache`, `file-history`, `telemetry`, or `cache`. Those hold session and project data,
+   and the installer never captures them.
 2. It links nine paths inside `${CLAUDE_CONFIG_DIR:-$HOME/.claude}` to files in this repository:
    `CLAUDE.md`, `settings.json`, `hooks`, `output-styles`, `rules`, `skills`, `bin`,
    `docs/references`, `docs/decisions`. It also links `$HOME/.local/bin/warden-handoff`. List
@@ -27,17 +30,19 @@ Say all of this, in your own words, before you write anything:
 4. It registers two plugin marketplaces through the `claude` CLI: the `superpowers` plugin
    vendored in this repository, and `cathrynlavery/diagram-design`. The `claude` CLI writes its
    own marketplace list for this.
-5. It downloads two binaries, `claude-context-monitor` and `claude-statusline`, from the latest
-   release of `stigsb/claude-context-monitor`, into `$HOME/bin`. It checks each one against the
-   release's checksum file before it installs it.
+5. It downloads one release archive for this platform from `stigsb/claude-context-monitor`,
+   checks that archive against the release's checksum file, and then extracts
+   `claude-context-monitor` and `claude-statusline` from it into `$HOME/bin`.
 6. It sets `core.hooksPath` to `.githooks` in this repository's own git configuration, so the
    pre-commit scrub hook runs. This changes only this clone's `.git/config`, not any global git
    setting. It skips this step when `core.hooksPath` already points somewhere else.
 7. `./uninstall.sh` removes the links from step 2 and restores what they replaced. It does not
    remove the plugin marketplaces or the downloaded binaries, and it does not undo the
    `core.hooksPath` setting. It prints the commands to remove those by hand.
-   `./uninstall.sh --from-archive <path>` restores the whole configuration directory from one
-   archive instead.
+   `./uninstall.sh --from-archive <path>` restores the configuration directory from one archive
+   instead, with the same exclusions: it leaves `projects`, `sessions`, `shell-snapshots`,
+   `paste-cache`, `file-history`, `telemetry`, and `cache` alone, because the archive never held
+   them.
 
 Then ask: "Shall I run it?"
 
@@ -58,6 +63,7 @@ Run these:
 
 ```bash
 ls -la "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" | grep -- '->'
+ls -la "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/docs" | grep -- '->'
 ls -la "$HOME/.local/bin/warden-handoff"
 ls -la "$HOME/bin"
 ls -la "$HOME/.warden-backups"

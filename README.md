@@ -26,7 +26,7 @@ Claude reads `INSTALL.md`, tells you every path it will write to, and waits for 
 
 | Path | What happens |
 |---|---|
-| `$HOME/.warden-backups/claude-<stamp>.tar.gz` | Your whole Claude configuration directory, archived before the first change. |
+| `$HOME/.warden-backups/claude-<stamp>.tar.gz` | Your Claude configuration directory, archived before the first change. Leaves out `projects/`, `sessions/`, and the other caches — never captured, never restored. |
 | `${CLAUDE_CONFIG_DIR:-$HOME/.claude}` | Nine symbolic links into this repository. Anything displaced is renamed, never removed. |
 | `$HOME/.local/bin/warden-handoff` | A link to the handoff tool. |
 | `$HOME/bin` | The two context-monitor binaries, checksum-verified. |
