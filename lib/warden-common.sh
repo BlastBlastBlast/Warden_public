@@ -46,10 +46,18 @@ WARDEN_EXCLUDES="projects sessions shell-snapshots paste-cache file-history tele
 # warden_archive_config <config_dir> <archive_dir>
 # Prints the archive path. REQ-3.6.
 warden_archive_config() {
-  local cfg="$1" dest="$2" stamp out parent base ex args
+  local cfg="$1" dest="$2" stamp out parent base ex args n
   stamp=$(warden_stamp)
   out="$dest/claude-$stamp.tar.gz"
   mkdir -p "$dest" || return 1
+  # REQ-3.6.5. Never overwrite an existing archive: two archives can land in
+  # the same second, since archiving a small configuration directory takes
+  # milliseconds.
+  n=2
+  while [ -e "$out" ]; do
+    out="$dest/claude-$stamp-$n.tar.gz"
+    n=$((n + 1))
+  done
   parent=$(dirname "$cfg")
   base=$(basename "$cfg")
   args=""
