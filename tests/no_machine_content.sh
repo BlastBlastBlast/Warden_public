@@ -20,15 +20,47 @@ check_pattern() {
 }
 
 check_pattern "absolute home path" '/(Users|home)/[A-Za-z0-9._-]+'
-check_pattern "orca hook block" '\.orca/agent-hooks/claude-hook|EncodedCommand JABQ'
-# REQ-6.3 forbids the marketplace, not the word. The spec states the
-# requirement and the plan quotes this test, so the pattern matches the shapes
-# a registration takes and leaves a prose mention alone: a settings.json key,
-# an enabledPlugins entry, a marketplace-add command with or without the
-# owning organization, and a github source repo. Ruling F37: the org-qualified
-# add is the shape install.sh:88 uses for diagram-design, so it is the shape a
-# real registration would take.
-check_pattern "sunstone marketplace" '"sunstone-plugins"|@sunstone-plugins|marketplace add [^ ]*sunstone-plugins|/sunstone-plugins"'
+# REQ-6.2 forbids a third-party agent hook block, not one vendor's. The
+# pattern matches the shape such a block takes rather than a name: a hook
+# command invoking a path under an agent-hooks directory, or an encoded
+# PowerShell payload. Either half alone is enough to flag an injected block,
+# and neither half names a product.
+check_pattern "agent hook block" '/agent-hooks/|EncodedCommand'
+
+# REQ-6.3 forbids a private or organization-internal marketplace, not one
+# name. A denylist pattern would have to name the marketplace to catch it,
+# which puts the private name back into the repository -- the thing the
+# owner ordered removed. An allowlist over settings.json does the same job
+# without naming anything private: it fails on any marketplace or plugin
+# this repository did not itself register.
+check_settings_allowlist() {
+  local settings="$REPO_DIR/settings.json" key ok=1
+
+  while IFS= read -r key; do
+    [ -z "$key" ] && continue
+    case "$key" in
+      diagram-design) ;;
+      *)
+        fail "extraKnownMarketplaces registers $key, which install.sh does not"
+        ok=0
+        ;;
+    esac
+  done < <(jq -r '.extraKnownMarketplaces // {} | keys[]' "$settings")
+
+  while IFS= read -r key; do
+    [ -z "$key" ] && continue
+    case "$key" in
+      diagram-design@diagram-design|superpowers@superpowers-dev) ;;
+      *)
+        fail "enabledPlugins enables $key, which is not one of the two allowed plugins"
+        ok=0
+        ;;
+    esac
+  done < <(jq -r '.enabledPlugins // {} | keys[]' "$settings")
+
+  [ "$ok" -eq 1 ] && pass "settings.json declares only the registered marketplaces and plugins"
+}
+check_settings_allowlist
 
 forbidden_files() {
   local f

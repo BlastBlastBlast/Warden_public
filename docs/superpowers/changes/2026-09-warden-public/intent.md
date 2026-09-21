@@ -41,7 +41,7 @@ external tools this setup draws on, with a one-line description and a link each.
 ## Constraints
 
 - The repo is public. It carries no absolute path from this machine, no private marketplace, and no
-  Orca hook block.
+  third-party agent hook blocks.
 - The installer makes no assumption about where the repo is cloned, what the user name is, or
   whether `~/bin` and `~/.local/bin` already exist.
 - No committed binaries. The installer downloads the context-monitor release that matches the
@@ -56,8 +56,8 @@ external tools this setup draws on, with a one-line description and a link each.
 
 ## Out of scope
 
-- The Sunstone plugins and the Orca agent hooks. Both are dropped from the shipped configuration.
-  The README names Orca in the tool table.
+- A private organization's plugins and a third-party agent's hook blocks. Both are dropped from the shipped configuration.
+  The README names a third-party tool in the external-tool table.
 - Windows. The installer targets macOS first and states its platform limits.
 - Repointing `~/dev/Warden` at the new repo. That is a later decision.
 - Merging the instruction surfaces into one file. `CLAUDE.md`, `rules/`, `output-styles/` and

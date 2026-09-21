@@ -59,12 +59,16 @@ test asserts that each expected link exists and points into the repository.*
 - **REQ-2.5** The installer MUST stop and MUST print the reason when no release asset matches the
   computer. The installer MUST NOT install a binary for another architecture.
 - **REQ-2.6** The installer MUST report a missing prerequisite by name and MUST stop. The
-  prerequisites are `git`, `jq`, `curl`, `tar`, `shasum` or `sha256sum`, and the `claude`
-  executable.
+  installer MUST require `git` and `tar` on every run. The installer MUST also require `jq`,
+  `curl`, the `claude` executable, and `shasum` or `sha256sum`, unless the person passes
+  `--skip-deps`. `--skip-deps` skips the step that calls the plugin CLI, the release API, and the
+  checksum tool, so that step's tools are the ones excused.
 
 *Proof: `tests/install_deps.sh` puts a stub `claude` and a stub `curl` on `PATH`, runs the
 installer, and asserts the commands the installer called and the files it wrote. A second case
-sets an unsupported architecture and asserts a non-zero exit and the printed reason.*
+sets an unsupported architecture and asserts a non-zero exit and the printed reason. A third case
+serves a release asset with a mismatched checksum and asserts a non-zero exit, the printed reason,
+and that neither monitor binary lands on disk.*
 
 **REQ-3** The installer MUST be safe to run again.
 
@@ -81,7 +85,11 @@ sets an unsupported architecture and asserts a non-zero exit and the printed rea
   the first change. The archive gives the person one way back, whatever the installer touched.
   - **REQ-3.6.1** The installer MUST write the archive to
     `$HOME/.warden-backups/claude-<UTC timestamp>.tar.gz`. The archive MUST sit outside the Claude
-    configuration directory, so a later install does not capture an earlier archive.
+    configuration directory, so a later install does not capture an earlier archive. The timestamp
+    has one-second resolution, so two archives can land in the same second. The installer MUST
+    append `-2`, `-3`, and further numbers to the path when that path already exists. REQ-3.6.5
+    forbids the installer to remove an earlier archive, and that rule wins over a predictable
+    filename.
   - **REQ-3.6.2** The installer MUST exclude the directories that hold cache and session state.
     Those are `projects/`, `sessions/`, `shell-snapshots/`, `paste-cache/`, `file-history/`,
     `telemetry/` and `cache/`. They are large and the person does not need them to revert.
@@ -112,6 +120,9 @@ link, and that it holds no excluded directory.*
   - **REQ-4.5.1** The uninstaller MUST list the newest archives under `$HOME/.warden-backups/`
     when the person gives no path.
   - **REQ-4.5.2** The uninstaller MUST archive the current state before it restores an older one.
+    Under `--dry-run`, the uninstaller MUST NOT write that archive. Under `--dry-run`, the
+    uninstaller MUST print what it would archive instead. REQ-3.5 requires a dry run to write
+    nothing, and this exception keeps REQ-4.5.2 consistent with that rule.
   - **REQ-4.5.3** The uninstaller MUST NOT remove a directory that REQ-3.6.2 excluded. A restore
     returns the configuration, not the session history.
 
@@ -140,16 +151,21 @@ recorded run on a second computer.*
 organization.
 
 - **REQ-6.1** The repository MUST NOT contain an absolute path that names a user account.
-- **REQ-6.2** The repository MUST NOT contain the Orca agent hook blocks.
-- **REQ-6.3** The repository MUST NOT contain the `sunstone-plugins` marketplace or any plugin
-  from it.
+- **REQ-6.2** The repository MUST NOT contain a third-party agent hook block injected into
+  `settings.json`, identified by an encoded command payload.
+- **REQ-6.3** The repository MUST NOT contain a private or organization-internal plugin
+  marketplace, or any plugin from one.
 - **REQ-6.4** The repository MUST NOT contain `RESTORE-shepherd.txt`.
 - **REQ-6.5** The repository MUST NOT contain `skills/synced/`.
 - **REQ-6.6** The repository MUST NOT contain a compiled binary. An image file is not a compiled
   binary. `assets/warden.png` is the one binary asset the repository carries.
 
-*Proof: `tests/no_machine_content.sh` greps the tracked files for `/Users/`, `/home/`, `.orca`,
-`sunstone`, and for any file that `file` reports as an executable. The test fails on a match.*
+*Proof: `tests/no_machine_content.sh` greps the tracked files for an absolute home path and for
+the shape of an injected agent hook block: a hook command under an `agent-hooks` directory, or an
+encoded command payload. It also asserts an allowlist over `settings.json`: every
+`extraKnownMarketplaces` key and every `enabledPlugins` key must be one this repository registers.
+The test also flags any file that `file` reports as an executable. The test fails on a match or on
+an unlisted key.*
 
 **REQ-7** The repository MUST carry the superpowers plugin as a vendored copy under
 `plugins/superpowers/`.
@@ -161,8 +177,11 @@ organization.
   this setup reads `superpowers:<skill>`, and a rename breaks each one.
 - **REQ-7.4** The vendored copy MUST carry a `NOTICE.md` that names `obra/superpowers` as the
   origin, names `BlastBlastBlast/more_superpowers` as the upstream of this copy, and states that
-  this setup modifies the copy.
+  this setup modifies the copy. `NOTICE.md` MUST also state the vendored version, the source
+  commit, and the list of omissions that REQ-7.6 requires.
 - **REQ-7.5** The vendored copy MUST NOT contain a `.git` directory.
+- **REQ-7.6** The vendored copy MUST omit the upstream `docs/` tree and `RELEASE-NOTES.md`. The
+  plugin does not load either at runtime, and both carried other people's home directory paths.
 
 *Proof: `tests/vendored_license.sh` compares `plugins/superpowers/LICENSE` against the upstream
 file, asserts the plugin name, and asserts that `NOTICE.md` names both repositories.*
@@ -193,7 +212,11 @@ file, asserts the plugin name, and asserts that `NOTICE.md` names both repositor
   give the command that restores from it.
 
 *Proof: `tests/readme_sections.sh` asserts that each required table heading exists, and that the
-external tool table holds the ten named repositories.*
+external tool table holds the ten named repositories. The test also cross-checks the README's
+stated link count against `WARDEN_SURFACES` plus `WARDEN_DOC_SURFACES`, so a change to either list
+without a matching README update fails the test. The test also cross-checks the wired-hook table
+against the hook commands in `settings.json`, so an undocumented hook or an unwired table row
+fails the test.*
 
 ### Operations
 
@@ -205,8 +228,14 @@ changing the computer.
 - **REQ-9.3** `tests/run.sh` MUST run every test and MUST exit non-zero when any test fails.
 - **REQ-9.4** The test suite MUST run on macOS and on Linux.
 
-*Proof: `tests/run.sh` prints a pass or fail line per test and a final count. A run on this
-computer shows the output.*
+*Proof: `tests/run.sh` runs `tests/install_links.sh`, `tests/install_deps.sh`,
+`tests/install_idempotent.sh`, `tests/install_snapshot.sh`, `tests/uninstall_restores.sh`,
+`tests/uninstall_from_archive.sh`, `tests/no_machine_content.sh`, `tests/vendored_license.sh`,
+`tests/readme_sections.sh`, and `tests/install_git_hook.sh`. `tests/install_git_hook.sh` asserts
+that `.githooks/pre-commit` exists and is executable, that a real install wires `core.hooksPath` to
+`.githooks` in a scratch repository, and that `--skip-plugin-hook` leaves `core.hooksPath` unset.
+`tests/run.sh` prints a pass or fail line per test and a final count. A run on this computer shows
+the output.*
 
 ## Non-goals
 
@@ -313,11 +342,43 @@ already reads `WARDEN_HANDOFF_ROOT`, with `$HOME/.claude/handoffs` as its defaul
 correctly when a binary is missing. The installer reuses those defaults rather than adding a
 second configuration path.
 
-The shipped `settings.json` differs from the current one in three ways. It drops every Orca hook
-group. It drops the `extraKnownMarketplaces` entry that names an absolute path. It keeps the two
+The shipped `settings.json` differs from the current one in three ways. It drops every third-party
+agent hook group. It drops the `extraKnownMarketplaces` entry that names an absolute path. It keeps the two
 secret guards, the context-monitor `PostToolUse` hook, the `SessionStart` handoff hook, the status
 line, the permission lists, and the subagent caps. The `statusLine` command and the `SessionStart`
 command both change from `$HOME/dev/Warden/bin/...` to
 `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/bin/...`, and the installer links `bin/` into the Claude
 configuration directory. That removes the last assumption about where the person cloned the
 repository.
+
+## Reconciled 2026-09-21
+
+- REQ-3.6.1 — Named one archive path with no fallback. Shipped: `warden_archive_config` appends
+  `-2`, `-3`, and so on when that path already exists, because the timestamp has one-second
+  resolution. Ruling: the spec was wrong.
+- REQ-2.6 — Listed the prerequisites flatly. Shipped: `check_prereqs` always requires `git` and
+  `tar`, and requires `jq`, `curl`, `claude`, and `shasum`/`sha256sum` only when the dependency
+  step runs. Ruling: the spec was wrong.
+- REQ-4.5.2 — Required an unconditional archive before a restore. Shipped: under `--dry-run` the
+  uninstaller prints what it would archive and writes nothing, matching REQ-3.5. Ruling: the spec
+  was wrong.
+- REQ-9 proof — Named nine test files. Shipped: the suite gained `tests/install_git_hook.sh` as a
+  tenth test. That test tests the git hook wiring. Ruling: the spec was wrong.
+- REQ-8 proof — Did not describe two cross-checks. Shipped: `tests/readme_sections.sh`
+  cross-checks the surface link count and the wired-hook table against `settings.json`. Ruling:
+  the spec was wrong.
+- REQ-7.4 — Did not require the vendored version, the source commit, or an omission list in
+  `NOTICE.md`. Shipped: `NOTICE.md` records all three. Ruling: the spec was wrong.
+- REQ-7.6 — New requirement. The vendored copy omits the upstream `docs/` tree and
+  `RELEASE-NOTES.md`, which the plugin does not load at runtime and which carried other people's
+  home directory paths. Ruling: the spec was wrong.
+- REQ-2 proof — Did not mention a checksum-mismatch case. Shipped: `tests/install_deps.sh` gained
+  a third case that serves a mismatched checksum. Ruling: the spec was wrong.
+- REQ-6.2 — Named a specific third-party agent's hook blocks. Rewritten to forbid the shape
+  without naming the product. Ruling: the owner ordered every reference to that product removed
+  from this repository.
+- REQ-6.3 — Named a specific private marketplace. Rewritten to forbid the shape without naming
+  it, and `tests/no_machine_content.sh` now proves it with an allowlist over `settings.json`'s
+  `extraKnownMarketplaces` and `enabledPlugins` keys instead of a denylist pattern, since a
+  denylist would have to name the marketplace to catch it. Ruling: the owner ordered every
+  reference to that marketplace removed from this repository, including from the test.

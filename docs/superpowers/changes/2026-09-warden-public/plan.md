@@ -56,7 +56,7 @@
 
 | Path | Change |
 |---|---|
-| `settings.json` | Drop every Orca hook group. Drop the `superpowers-dev` marketplace entry. Repoint `statusLine` and the `SessionStart` hook at the Claude configuration directory. |
+| `settings.json` | Drop every third-party agent hook group. Drop the private marketplace entry. Repoint `statusLine` and the `SessionStart` hook at the Claude configuration directory. |
 | `CLAUDE.md`, `rules/`, `output-styles/`, `hooks/`, `docs/references/`, `docs/decisions/`, `bin/` | Copied without change. |
 | `skills/` | Copied without `skills/synced/`. |
 
@@ -74,7 +74,7 @@
 cd ~/dev/Warden_public && ./install.sh --dry-run && ./tests/run.sh
 ```
 
-**Risk:** The scrub test is the only thing standing between a private path and a public repository. If it greps the wrong set of files, or passes on an empty file list, a leak ships. It gets three tests: a clean tree passes, a seeded machine path fails, a seeded `.orca` string fails. The dry-run printer carries no risk beyond wrong output, so it gets one test.
+**Risk:** The scrub test is the only thing standing between a private path and a public repository. If it greps the wrong set of files, or passes on an empty file list, a leak ships. It gets three tests: a clean tree passes, a seeded machine path fails, a seeded third-party hook string fails. The dry-run printer carries no risk beyond wrong output, so it gets one test.
 
 **Model:** standard tier — this slice copies files from another repository and edits JSON by hand.
 
@@ -116,7 +116,7 @@ Apply exactly these four changes. Leave `attribution`, `outputStyle`, `permissio
 
 1. Replace the `_comment` value with:
    `"Source of truth: the Warden_public repository, symlinked to the Claude configuration directory."`
-2. In `hooks`, delete every hook group whose command contains `.orca/agent-hooks`. That removes the third `PreToolUse` group, the second `PostToolUse` group, and the whole of `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `TeammateIdle`, `PostToolUseFailure`, `PermissionRequest` and `PostCompact`. It also removes the second `SessionStart` group.
+2. In `hooks`, delete every hook group whose command contains an encoded third-party payload. That removes the third `PreToolUse` group, the second `PostToolUse` group, and the whole of `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `TeammateIdle`, `PostToolUseFailure`, `PermissionRequest` and `PostCompact`. It also removes the second `SessionStart` group.
 3. Change the remaining `SessionStart` command from `$HOME/dev/Warden/bin/warden-handoff hook` to `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/bin/warden-handoff hook`.
 4. Change `statusLine.command` from `$HOME/dev/Warden/bin/warden-statusline` to `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/bin/warden-statusline`.
 5. In `extraKnownMarketplaces`, delete the `superpowers-dev` key. Keep `diagram-design`.
@@ -318,8 +318,8 @@ check_pattern() {
 }
 
 check_pattern "absolute home path" '/(Users|home)/[A-Za-z0-9._-]+'
-check_pattern "orca hook reference" '\.orca/agent-hooks'
-check_pattern "sunstone marketplace" 'sunstone-plugins'
+check_pattern "third-party hook reference" '\.[a-z_-]+/agent-hooks'
+check_pattern "private marketplace entry" '[a-z_-]+-plugins'
 
 forbidden_files() {
   local f

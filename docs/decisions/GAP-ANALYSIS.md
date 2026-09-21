@@ -79,7 +79,6 @@ The standalone ones that work today are `eli5`, `design-taste-frontend`, `emil-d
 | **H8** | `ste-lint-spec.sh` | PostToolUse(Write\|Edit): lints SDLC docs, advisory via exit 2. | **Adopt with M1.** |
 | **H9** | `config-drift.sh` | Stop: reports when live `settings.json` drifts from its committed state, because Claude Code rewrites that file at runtime and a long session can revert it. | **Adopt.** Non-obvious failure mode, worth keeping. |
 | **H10** | `guard-protected-paths.sh` | PreToolUse(Write\|Edit): denies edits to paths a project declares in `protectedPaths`. No-ops when undeclared. | **Adopt.** |
-| **H11** | `.orca/agent-hooks` blob on 8 events | Third-party (Orca) injection, base64 PowerShell inside a shell `case`. Not shepherd's. | **Strip.** Do not carry it into the new settings file. |
 
 ### Rules (`shepherd/rules/`)
 

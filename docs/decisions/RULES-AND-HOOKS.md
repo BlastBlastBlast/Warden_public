@@ -18,7 +18,6 @@ prompt. `report` writes text back and changes nothing.
 | `plan-drift.sh` | Stop | Reports when the working tree touches files `plan.md` does not name. Guards its own re-entry so the report does not repeat on every Stop. | report | scrapped, not imported |
 | `config-drift.sh` | Stop | Reports when live `settings.json` drifts from its committed state, because Claude Code rewrites that file at runtime and a long session can revert it. | report | scrapped, not imported |
 | `ste-lint-spec.sh` | PostToolUse Write\|Edit | Lints spec and plan documents against the spec-language rules. Advisory. | report | scrapped, not imported |
-| `.orca/agent-hooks` blob | 8 events | Third-party Orca injection, base64 PowerShell inside a shell `case`. | — | stripped |
 
 Wired now: **two hooks, both secret guards.** Everything else is out.
 
