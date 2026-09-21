@@ -4,7 +4,9 @@
 #   line 1  stigsb/claude-context-monitor's claude-statusline — model, task, dir, context bar
 #   line 2  plan usage limits, which claude-statusline does not show
 #
-# Wire with:  "statusLine": {"type":"command","command":"$HOME/dev/Warden/bin/warden-statusline"}
+# Wire with:  "statusLine": {"type":"command",
+#               "command":"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/bin/warden-statusline"}
+#             which is what the settings.json in this repository ships.
 #
 # rate_limits appears only for claude.ai Pro and Max subscribers, and only after the first API
 # response in a session. Each window is independently optional, and Claude Code drops a window

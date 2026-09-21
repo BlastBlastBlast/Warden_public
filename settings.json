@@ -87,7 +87,6 @@
   },
   "enabledPlugins": {
     "diagram-design@diagram-design": true,
-    "pyright-lsp@claude-plugins-official": true,
     "superpowers@superpowers-dev": true
   },
   "extraKnownMarketplaces": {
