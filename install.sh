@@ -30,10 +30,31 @@ export WARDEN_DRY_RUN
 warden_say "repository: $REPO"
 warden_say "claude config: $CFG"
 
-for name in $WARDEN_SURFACES; do
-  warden_say "would link: $CFG/$name -> $REPO/$name"
-done
-for name in $WARDEN_DOC_SURFACES; do
-  warden_say "would link: $CFG/docs/$name -> $REPO/docs/$name"
-done
-warden_say "would link: $HOME/.local/bin/warden-handoff -> $REPO/bin/warden-handoff"
+# REQ-3.6.6. No change without an archive.
+if [ "$WARDEN_DRY_RUN" = "1" ]; then
+  warden_say "would archive: $CFG -> $(warden_backup_dir)/claude-<stamp>.tar.gz"
+else
+  mkdir -p "$CFG"
+  ARCHIVE=$(warden_archive_config "$CFG" "$(warden_backup_dir)") \
+    || warden_die "could not archive $CFG"
+  warden_say "archive: $ARCHIVE"
+fi
+
+if [ "$WARDEN_DRY_RUN" = "1" ]; then
+  for name in $WARDEN_SURFACES; do
+    warden_say "would link: $CFG/$name -> $REPO/$name"
+  done
+  for name in $WARDEN_DOC_SURFACES; do
+    warden_say "would link: $CFG/docs/$name -> $REPO/docs/$name"
+  done
+  warden_say "would link: $HOME/.local/bin/warden-handoff -> $REPO/bin/warden-handoff"
+else
+  for name in $WARDEN_SURFACES; do
+    warden_link "$REPO/$name" "$CFG/$name" || warden_die "could not link $name"
+  done
+  for name in $WARDEN_DOC_SURFACES; do
+    warden_link "$REPO/docs/$name" "$CFG/docs/$name" || warden_die "could not link docs/$name"
+  done
+  warden_link "$REPO/bin/warden-handoff" "$HOME/.local/bin/warden-handoff" \
+    || warden_die "could not link warden-handoff"
+fi

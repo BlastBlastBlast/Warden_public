@@ -20,4 +20,27 @@ case "$out" in
   *) pass "docs/superpowers is not linked" ;;
 esac
 
+# A real install, into a directory that already holds a settings.json.
+printf '{"theme":"dark"}\n' > "$HOME/.claude/settings.json"
+"$REPO_DIR/install.sh" --skip-deps >/dev/null 2>&1
+
+assert_link "$HOME/.claude/CLAUDE.md" "$REPO_DIR/CLAUDE.md"
+assert_link "$HOME/.claude/settings.json" "$REPO_DIR/settings.json"
+assert_link "$HOME/.claude/hooks" "$REPO_DIR/hooks"
+assert_link "$HOME/.claude/output-styles" "$REPO_DIR/output-styles"
+assert_link "$HOME/.claude/rules" "$REPO_DIR/rules"
+assert_link "$HOME/.claude/skills" "$REPO_DIR/skills"
+assert_link "$HOME/.claude/bin" "$REPO_DIR/bin"
+assert_link "$HOME/.claude/docs/references" "$REPO_DIR/docs/references"
+assert_link "$HOME/.claude/docs/decisions" "$REPO_DIR/docs/decisions"
+assert_link "$HOME/.local/bin/warden-handoff" "$REPO_DIR/bin/warden-handoff"
+
+# REQ-3.1. The displaced file survives under its backup name.
+kept=$(ls "$HOME/.claude/"settings.json.warden-backup-* 2>/dev/null | head -1)
+if [ -n "$kept" ] && grep -q dark "$kept"; then
+  pass "the displaced settings.json survives at $kept"
+else
+  fail "the displaced settings.json was lost"
+fi
+
 harness_exit
