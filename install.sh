@@ -58,3 +58,5 @@ else
   warden_link "$REPO/bin/warden-handoff" "$HOME/.local/bin/warden-handoff" \
     || warden_die "could not link warden-handoff"
 fi
+
+warden_say "summary: $WARDEN_MADE linked, $WARDEN_KEPT kept, $WARDEN_BACKED_UP backed up"
