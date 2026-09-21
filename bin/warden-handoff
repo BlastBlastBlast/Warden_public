@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# warden-handoff — where handoff docs live, and the SessionStart hook that offers one after /clear.
+#
+#   warden-handoff dir              print (and create) this worktree's handoff directory
+#   warden-handoff pointer <file>   repoint latest.md and arm the hook for this session
+#   warden-handoff hook             SessionStart hook; consumes the pending pointer once
+#
+# Handoffs live OUTSIDE any working repo, under ~/.claude/handoffs, so "never committed" is
+# structural rather than a .gitignore rule to remember in every repo.
+#
+# The directory is per WORKTREE, not per repo: parallel agents each get their own worktree and
+# that is different work on a different branch. The pending pointer is per SESSION, so two
+# agents sharing a worktree cannot consume each other's handoff.
+
+set -uo pipefail
+
+ROOT="${WARDEN_HANDOFF_ROOT:-$HOME/.claude/handoffs}"
+
+slug_for() {
+  local dir="${1:-$PWD}" top
+  top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || top="$dir"
+  printf '%s' "$top" | sed -e "s|^$HOME/||" -e 's|[^A-Za-z0-9._-]|-|g' -e 's|--*|-|g' -e 's|^-||' -e 's|-$||'
+}
+
+# One key per terminal pane/session, so concurrent sessions do not share a pointer.
+pane_key() {
+  local k="${TMUX_PANE:-}${TERM_SESSION_ID:-}${WEZTERM_PANE:-}"
+  [ -n "$k" ] || k="ppid-$PPID"
+  printf '%s' "$k" | sed 's|[^A-Za-z0-9._-]|-|g'
+}
+
+cmd_dir() {
+  local d="$ROOT/$(slug_for "$PWD")"
+  mkdir -p "$d"
+  printf '%s\n' "$d"
+}
+
+cmd_pointer() {
+  local file="${1:-}"
+  [ -n "$file" ] || { echo "usage: warden-handoff pointer <file>" >&2; return 2; }
+  [ -f "$file" ] || { echo "warden-handoff: no such file: $file" >&2; return 1; }
+  local d; d=$(cd "$(dirname "$file")" && pwd)
+  ln -sfn "$file" "$d/latest.md"
+  printf '%s\n' "$file" > "$d/PENDING.$(pane_key)"
+  printf 'armed: %s\n' "$d/PENDING.$(pane_key)"
+}
+
+# SessionStart. Only /clear should offer a handoff — a fresh startup or a resume already has
+# its context. Reads the payload from stdin and answers with JSON on stdout.
+cmd_hook() {
+  local payload source cwd d pending file heading
+  payload=$(cat)
+  command -v jq >/dev/null 2>&1 || { printf '{}\n'; return 0; }
+  source=$(printf '%s' "$payload" | jq -r '.source // empty')
+  cwd=$(printf '%s' "$payload" | jq -r '.cwd // empty')
+  [ "$source" = "clear" ] || { printf '{}\n'; return 0; }
+
+  d="$ROOT/$(slug_for "${cwd:-$PWD}")"
+  pending="$d/PENDING.$(pane_key)"
+  [ -f "$pending" ] || { printf '{}\n'; return 0; }
+  file=$(cat "$pending")
+  rm -f "$pending"                       # fire once, never on the next /clear
+  [ -f "$file" ] || { printf '{}\n'; return 0; }
+
+  heading=$(head -1 "$file" | sed 's/^#*[[:space:]]*//')
+  jq -nc --arg f "$file" --arg h "$heading" '{
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: ("A handoff is waiting for this worktree: \($h)\nIt is at \($f).\nRead it and continue from its Next action. Say so before you start.")
+    }
+  }'
+}
+
+case "${1:-}" in
+  dir)     shift; cmd_dir "$@" ;;
+  pointer) shift; cmd_pointer "$@" ;;
+  hook)    shift; cmd_hook "$@" ;;
+  *) echo "usage: warden-handoff {dir|pointer <file>|hook}" >&2; exit 2 ;;
+esac

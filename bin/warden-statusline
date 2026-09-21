@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Two-line status line.
+#
+#   line 1  stigsb/claude-context-monitor's claude-statusline — model, task, dir, context bar
+#   line 2  plan usage limits, which claude-statusline does not show
+#
+# Wire with:  "statusLine": {"type":"command","command":"$HOME/dev/Warden/bin/warden-statusline"}
+#
+# rate_limits appears only for claude.ai Pro and Max subscribers, and only after the first API
+# response in a session. Each window is independently optional, and Claude Code drops a window
+# once its resets_at passes — so every field is read with a // empty fallback and line 2 is
+# simply absent when there is nothing to say.
+
+set -uo pipefail
+
+CONTEXT_STATUSLINE="${CONTEXT_STATUSLINE:-$HOME/bin/claude-statusline}"
+input=$(cat)
+
+# --- line 1 -----------------------------------------------------------------
+# claude-statusline emits no trailing newline, so capture it and add one ourselves;
+# otherwise line 2 runs into line 1.
+if [ -x "$CONTEXT_STATUSLINE" ]; then
+  line1=$(printf '%s' "$input" | "$CONTEXT_STATUSLINE")
+else
+  # Fallback so a missing binary degrades to something rather than nothing.
+  line1=$(printf '%s' "$input" | jq -r '"\(.model.display_name // "claude") │ \(.workspace.current_dir // "" | split("/") | last)"')
+fi
+printf '%s\n' "$line1"
+
+command -v jq >/dev/null 2>&1 || exit 0
+
+# --- line 2 -----------------------------------------------------------------
+# "4h24m", "2d3h", or empty when the window is gone.
+countdown() {
+  local target="$1" now delta d h m
+  [ -n "$target" ] || return 0
+  now=$(date +%s)
+  delta=$(( target - now ))
+  [ "$delta" -gt 0 ] || return 0
+  d=$(( delta / 86400 )); h=$(( (delta % 86400) / 3600 )); m=$(( (delta % 3600) / 60 ))
+  if   [ "$d" -gt 0 ]; then printf '%dd%dh' "$d" "$h"
+  elif [ "$h" -gt 0 ]; then printf '%dh%02dm' "$h" "$m"
+  else                      printf '%dm' "$m"
+  fi
+}
+
+field() { printf '%s' "$input" | jq -r "$1 // empty" 2>/dev/null; }
+
+ESC=$(printf '\033')
+RESET="${ESC}[0m"; DIM="${ESC}[2m"; YELLOW="${ESC}[33m"; RED="${ESC}[31m"
+
+line=""
+for window in five_hour:5h seven_day:7d spend_limit:spend; do
+  key=${window%%:*}; label=${window##*:}
+  pct=$(field ".rate_limits.${key}.used_percentage")
+  [ -n "$pct" ] || continue
+  pct=$(printf '%.0f' "$pct" 2>/dev/null) || continue
+  reset=$(countdown "$(field ".rate_limits.${key}.resets_at")")
+
+  # Dim under 50, yellow from 50, red from 80. spend_limit can exceed 100.
+  if   [ "$pct" -ge 80 ]; then colour="$RED"
+  elif [ "$pct" -ge 50 ]; then colour="$YELLOW"
+  else                         colour="$DIM"
+  fi
+
+  seg="${colour}${label} ${pct}%${RESET}"
+  [ -n "$reset" ] && seg="${seg}${DIM} · ${reset}${RESET}"
+  [ -n "$line" ] && line="${line}   "
+  line="${line}${seg}"
+done
+
+[ -n "$line" ] || exit 0
+printf '%s\n' "$line"

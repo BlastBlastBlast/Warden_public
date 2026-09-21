@@ -1,0 +1,107 @@
+{
+  "_comment": "Source of truth: the Warden_public repository, symlinked to the Claude configuration directory.",
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "outputStyle": "plain-technical",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.local)",
+      "Read(**/.env.*.local)",
+      "Read(**/.env.production)",
+      "Read(**/.env.staging)",
+      "Read(**/.env.test)",
+      "Read(**/.env.development)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(~/.ssh/**)",
+      "Read(./secrets/**)",
+      "Read(**/secrets/**)"
+    ],
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr checks:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/guard-secrets.sh",
+            "statusMessage": "Secret scan"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/guard-secrets-read.sh",
+            "statusMessage": "Secret scan"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/bin/claude-context-monitor"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/bin/warden-handoff hook"
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "3",
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2"
+  },
+  "enabledPlugins": {
+    "diagram-design@diagram-design": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "superpowers@superpowers-dev": true
+  },
+  "extraKnownMarketplaces": {
+    "diagram-design": {
+      "source": {
+        "source": "github",
+        "repo": "cathrynlavery/diagram-design"
+      }
+    }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/bin/warden-statusline",
+    "padding": 0,
+    "refreshInterval": 10
+  }
+}
