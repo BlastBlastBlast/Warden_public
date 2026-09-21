@@ -32,11 +32,17 @@ done
 export WARDEN_DRY_RUN
 
 restore_from_archive() {
-  local archive="$1" parent base ex tmp
+  local archive="$1" parent base ex tmp new_archive
   [ -f "$archive" ] || warden_die "no such archive: $archive"
   # REQ-4.5.2
   warden_say "archiving the current state first"
-  warden_say "archive: $(warden_archive_config "$CFG" "$(warden_backup_dir)")"
+  if [ "$WARDEN_DRY_RUN" = "1" ]; then
+    warden_say "would archive: $CFG -> $(warden_backup_dir)/claude-<stamp>.tar.gz"
+  else
+    new_archive=$(warden_archive_config "$CFG" "$(warden_backup_dir)") \
+      || warden_die "could not archive $CFG before restoring"
+    warden_say "archive: $new_archive"
+  fi
 
   # REQ-4.5.3. Remove only what the archive can put back.
   for entry in "$CFG"/* "$CFG"/.[!.]*; do
