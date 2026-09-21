@@ -27,7 +27,14 @@ JSON
     ;;
   *checksums.txt)
     stage="${WARDEN_STUB_STAGE:?stub stage not set}"
-    ( cd "$stage" && shasum -a 256 ./*.tar.gz | sed 's|\./||' ) | emit
+    if [ "${WARDEN_STUB_BAD_SUM:-0}" = "1" ]; then
+      bad=$(printf '%064x' 0)
+      ( cd "$stage" && for f in ./*.tar.gz; do
+          printf '%s  %s\n' "$bad" "${f#./}"
+        done )
+    else
+      ( cd "$stage" && shasum -a 256 ./*.tar.gz | sed 's|\./||' )
+    fi | emit
     ;;
   *.tar.gz)
     stage="${WARDEN_STUB_STAGE:?stub stage not set}"

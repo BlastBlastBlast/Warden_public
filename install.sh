@@ -78,9 +78,11 @@ fi
 
 install_plugins() {
   warden_run "register the vendored superpowers marketplace" \
-    claude plugin marketplace add "$REPO/plugins/superpowers"
+    claude plugin marketplace add "$REPO/plugins/superpowers" \
+    || warden_die "could not register the superpowers marketplace"
   warden_run "register the diagram-design marketplace" \
-    claude plugin marketplace add cathrynlavery/diagram-design
+    claude plugin marketplace add cathrynlavery/diagram-design \
+    || warden_die "could not register the diagram-design marketplace"
 }
 
 WARDEN_MONITOR_REPO="${WARDEN_MONITOR_REPO:-stigsb/claude-context-monitor}"
@@ -137,7 +139,8 @@ install_monitor() {
   for bin in claude-context-monitor claude-statusline; do
     found=$(find "$tmp/x" -name "$bin" -type f | head -1)
     [ -n "$found" ] || { rm -rf "$tmp"; warden_die "$bin is not in the archive"; }
-    warden_run "install: $HOME/bin/$bin" install -m 0755 "$found" "$HOME/bin/$bin"
+    warden_run "install: $HOME/bin/$bin" install -m 0755 "$found" "$HOME/bin/$bin" \
+      || { rm -rf "$tmp"; warden_die "could not install $bin"; }
   done
   rm -rf "$tmp"
 }

@@ -62,4 +62,27 @@ fi
 assert_contains "$out" "missing prerequisite: claude"
 assert_absent "$HOME/.warden-backups"
 
+# REQ-2.3. A checksum mismatch stops the installer before anything is installed.
+harness_teardown
+harness_setup
+export WARDEN_STUB_STAGE="$HARNESS_TMP/stage"
+mkdir -p "$WARDEN_STUB_STAGE/payload"
+printf '#!/bin/sh\necho monitor\n' > "$WARDEN_STUB_STAGE/payload/claude-context-monitor"
+printf '#!/bin/sh\necho statusline\n' > "$WARDEN_STUB_STAGE/payload/claude-statusline"
+chmod +x "$WARDEN_STUB_STAGE/payload/"claude-*
+( cd "$WARDEN_STUB_STAGE/payload" \
+  && tar czf "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_darwin_arm64.tar.gz" . )
+cp "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_darwin_arm64.tar.gz" \
+   "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_linux_amd64.tar.gz"
+out=$(WARDEN_OS=darwin WARDEN_ARCH=arm64 WARDEN_STUB_BAD_SUM=1 "$REPO_DIR/install.sh" 2>&1)
+status=$?
+if [ "$status" -ne 0 ]; then
+  pass "a checksum mismatch exits non-zero"
+else
+  fail "a checksum mismatch exited 0"
+fi
+assert_contains "$out" "checksum mismatch"
+assert_absent "$HOME/bin/claude-context-monitor"
+assert_absent "$HOME/bin/claude-statusline"
+
 harness_exit
