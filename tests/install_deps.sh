@@ -15,7 +15,7 @@ chmod +x "$WARDEN_STUB_STAGE/payload/"claude-*
 cp "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_darwin_arm64.tar.gz" \
    "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_linux_amd64.tar.gz"
 
-WARDEN_OS=darwin WARDEN_ARCH=arm64 "$REPO_DIR/install.sh" >/dev/null 2>&1
+WARDEN_OS=darwin WARDEN_ARCH=arm64 "$REPO_DIR/install.sh" --skip-plugin-hook >/dev/null 2>&1
 log=$(cat "$WARDEN_STUB_LOG")
 
 # REQ-2.1
@@ -36,7 +36,7 @@ harness_teardown
 harness_setup
 export WARDEN_STUB_STAGE="$HARNESS_TMP/stage"
 mkdir -p "$WARDEN_STUB_STAGE"
-out=$(WARDEN_OS=plan9 WARDEN_ARCH=sparc "$REPO_DIR/install.sh" 2>&1)
+out=$(WARDEN_OS=plan9 WARDEN_ARCH=sparc "$REPO_DIR/install.sh" --skip-plugin-hook 2>&1)
 status=$?
 if [ "$status" -ne 0 ]; then
   pass "an unsupported platform exits non-zero"
@@ -52,7 +52,7 @@ harness_setup
 export WARDEN_STUB_STAGE="$HARNESS_TMP/stage"
 mkdir -p "$WARDEN_STUB_STAGE"
 mkdir -p "$HARNESS_TMP/emptybin"
-out=$(PATH="$HARNESS_TMP/emptybin:/usr/bin:/bin" "$REPO_DIR/install.sh" 2>&1)
+out=$(PATH="$HARNESS_TMP/emptybin:/usr/bin:/bin" "$REPO_DIR/install.sh" --skip-plugin-hook 2>&1)
 status=$?
 if [ "$status" -ne 0 ]; then
   pass "a missing prerequisite exits non-zero"
@@ -74,7 +74,7 @@ chmod +x "$WARDEN_STUB_STAGE/payload/"claude-*
   && tar czf "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_darwin_arm64.tar.gz" . )
 cp "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_darwin_arm64.tar.gz" \
    "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_linux_amd64.tar.gz"
-out=$(WARDEN_OS=darwin WARDEN_ARCH=arm64 WARDEN_STUB_BAD_SUM=1 "$REPO_DIR/install.sh" 2>&1)
+out=$(WARDEN_OS=darwin WARDEN_ARCH=arm64 WARDEN_STUB_BAD_SUM=1 "$REPO_DIR/install.sh" --skip-plugin-hook 2>&1)
 status=$?
 if [ "$status" -ne 0 ]; then
   pass "a checksum mismatch exits non-zero"

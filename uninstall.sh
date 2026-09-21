@@ -24,7 +24,7 @@ while [ $# -gt 0 ]; do
         ""|--*) ;;
         *) FROM_ARCHIVE="$2"; shift ;;
       esac ;;
-    -h|--help) sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,/^[^#]/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) warden_die "unknown option: $1" ;;
   esac
   shift

@@ -3,7 +3,7 @@
 . "$(dirname "$0")/lib/harness.sh"
 harness_setup
 
-out=$("$REPO_DIR/install.sh" --dry-run --skip-deps 2>&1)
+out=$("$REPO_DIR/install.sh" --dry-run --skip-deps --skip-plugin-hook 2>&1)
 
 assert_contains "$out" "would link: $HOME/.claude/CLAUDE.md -> $REPO_DIR/CLAUDE.md"
 assert_contains "$out" "would link: $HOME/.claude/settings.json -> $REPO_DIR/settings.json"
@@ -22,7 +22,7 @@ esac
 
 # A real install, into a directory that already holds a settings.json.
 printf '{"theme":"dark"}\n' > "$HOME/.claude/settings.json"
-"$REPO_DIR/install.sh" --skip-deps >/dev/null 2>&1
+"$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook >/dev/null 2>&1
 
 assert_link "$HOME/.claude/CLAUDE.md" "$REPO_DIR/CLAUDE.md"
 assert_link "$HOME/.claude/settings.json" "$REPO_DIR/settings.json"

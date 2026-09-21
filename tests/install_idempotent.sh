@@ -3,12 +3,12 @@
 . "$(dirname "$0")/lib/harness.sh"
 harness_setup
 
-first=$("$REPO_DIR/install.sh" --skip-deps 2>&1)
+first=$("$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook 2>&1)
 assert_contains "$first" "summary: 10 linked, 0 kept, 0 backed up"
 
 before=$(ls -1 "$HOME/.claude" | wc -l | tr -d ' ')
 
-second=$("$REPO_DIR/install.sh" --skip-deps 2>&1)
+second=$("$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook 2>&1)
 assert_contains "$second" "summary: 0 linked, 10 kept, 0 backed up"
 
 after=$(ls -1 "$HOME/.claude" | wc -l | tr -d ' ')

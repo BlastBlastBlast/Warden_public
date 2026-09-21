@@ -10,7 +10,7 @@ printf 'my notes\n' > "$HOME/.claude/agents/notes.md"
 ln -s /etc/hosts "$HOME/.claude/a-link"
 printf 'big cache\n' > "$HOME/.claude/projects/some-project/history.jsonl"
 
-out=$("$REPO_DIR/install.sh" --skip-deps 2>&1)
+out=$("$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook 2>&1)
 
 archive=$(printf '%s\n' "$out" | sed -n 's/^archive: //p' | tail -1)
 if [ -z "$archive" ]; then

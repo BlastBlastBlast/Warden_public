@@ -8,7 +8,7 @@ printf 'keep me\n' > "$HOME/.claude/my-notes.md"
 mkdir -p "$HOME/.claude/projects/p1"
 printf 'transcript\n' > "$HOME/.claude/projects/p1/history.jsonl"
 
-out=$("$REPO_DIR/install.sh" --skip-deps 2>&1)
+out=$("$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook 2>&1)
 archive=$(printf '%s\n' "$out" | sed -n 's/^archive: //p' | tail -1)
 
 # Change something after the install, so the restore has work to do.
@@ -56,7 +56,7 @@ harness_setup
 printf 'before\n' > "$HOME/.claude/settings.json"
 printf 'dry run should not touch this\n' > "$HOME/.claude/dryrun-marker.txt"
 
-out=$("$REPO_DIR/install.sh" --skip-deps 2>&1)
+out=$("$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook 2>&1)
 archive=$(printf '%s\n' "$out" | sed -n 's/^archive: //p' | tail -1)
 
 before_count=$(ls -1 "$HOME/.warden-backups" | wc -l | tr -d ' ')
@@ -91,7 +91,7 @@ printf 'before\n' > "$HOME/.claude/settings.json"
 mkdir -p "$HOME/.claude/projects/p1"
 printf 'transcript\n' > "$HOME/.claude/projects/p1/history.jsonl"
 
-out=$("$REPO_DIR/install.sh" --skip-deps 2>&1)
+out=$("$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook 2>&1)
 archive=$(printf '%s\n' "$out" | sed -n 's/^archive: //p' | tail -1)
 
 # Something the deletion loop would remove, so a wrongly-continued restore

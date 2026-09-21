@@ -6,7 +6,7 @@ harness_setup
 printf '{"theme":"dark"}\n' > "$HOME/.claude/settings.json"
 original=$(cat "$HOME/.claude/settings.json")
 
-"$REPO_DIR/install.sh" --skip-deps >/dev/null 2>&1
+"$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook >/dev/null 2>&1
 
 # Replace links at surface paths with foreign content to test the guard clause
 # skills: regular file (exercises the [ -L "$link" ] check)

@@ -4,6 +4,7 @@
 #   ./install.sh              archive, link, install dependencies
 #   ./install.sh --dry-run    print every action, write nothing
 #   ./install.sh --skip-deps  archive and link only
+#   ./install.sh --skip-plugin-hook  skip wiring the git pre-commit hook
 set -uo pipefail
 
 SELF_DIR=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -21,7 +22,7 @@ while [ $# -gt 0 ]; do
     --skip-deps) SKIP_DEPS=1 ;;
     --skip-plugin-hook) SKIP_PLUGIN_HOOK=1 ;;
     -h|--help)
-      sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,/^[^#]/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *) warden_die "unknown option: $1" ;;
   esac
@@ -155,10 +156,18 @@ else
 fi
 
 install_git_hook() {
-  [ -d "$REPO/.git" ] || { warden_say "skip: the repository is not a git checkout"; return 0; }
+  [ -e "$REPO/.git" ] || { warden_say "skip: the repository is not a git checkout"; return 0; }
   local current
   current=$(git -C "$REPO" config --get core.hooksPath 2>/dev/null)
-  [ "$current" = ".githooks" ] && { warden_say "keep: core.hooksPath is .githooks"; return 0; }
+  if [ "$current" = ".githooks" ]; then
+    warden_say "keep: core.hooksPath is .githooks"
+    return 0
+  fi
+  if [ -n "$current" ]; then
+    warden_say "skip: core.hooksPath is already set to $current"
+    warden_say "to wire the scrub hook by hand: git -C \"$REPO\" config core.hooksPath .githooks"
+    return 0
+  fi
   warden_run "set core.hooksPath to .githooks" \
     git -C "$REPO" config core.hooksPath .githooks
 }
