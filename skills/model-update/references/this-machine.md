@@ -37,8 +37,9 @@ Two layers, two ways an edit takes effect:
 3. Validate `settings.json` parses after every edit. A broken settings file is a broken session
    on the next start, immediately, because of the symlink.
 4. Run `bash tests/run.sh`. It must end `0 failed`.
-5. Re-run the secret-guard checks after touching either guard. They are the only two hooks that
-   can block a tool call, so nothing else catches a regression in them.
+5. Exercise both secret guards by hand after touching either one. The suite covers the installer
+   and this repository's own hygiene, not the hooks, and the guards are the only two hooks that
+   can block a tool call — so nothing else catches a regression in them.
 6. The clone wires `.githooks/pre-commit`, which refuses a commit that would publish a machine
    path. Do not work around it; fix the file it names.
 
@@ -51,8 +52,10 @@ Two layers, two ways an edit takes effect:
 - **Plugin skills are namespaced.** A superpowers skill is `/superpowers:<name>`. A Warden skill
   is `/<name>`. When both cover a topic, the descriptions compete and triggering gets less
   reliable — that is the signal to delete one, not to reword both.
-- **The configuration directory is not always `~/.claude`.** `CLAUDE_CONFIG_DIR` overrides it,
-  and every script here reads it through that variable. Write it the same way.
+- **The configuration directory is not always `~/.claude`.** `CLAUDE_CONFIG_DIR` overrides it.
+  The installer and the hook commands in `settings.json` read it through that variable;
+  `bin/warden-handoff` is the exception, and keeps its own `WARDEN_HANDOFF_ROOT`. Do not write
+  `~/.claude` literally in new code — read one of those two variables.
 - **No declared harness version floor.** Nothing records which features the config depends on.
   When a model update adopts version-gated config, note the version it needs in the change
   record — older harnesses ignore unknown config silently. Map features to versions via

@@ -22,10 +22,13 @@ check_pattern() {
 check_pattern "absolute home path" '/(Users|home)/[A-Za-z0-9._-]+'
 check_pattern "orca hook block" '\.orca/agent-hooks/claude-hook|EncodedCommand JABQ'
 # REQ-6.3 forbids the marketplace, not the word. The spec states the
-# requirement and the plan quotes this test, so the pattern matches the two
-# shapes a registration takes in settings.json and the shape a script would
-# use, and leaves a prose mention alone.
-check_pattern "sunstone marketplace" '"sunstone-plugins"|@sunstone-plugins|marketplace add sunstone-plugins'
+# requirement and the plan quotes this test, so the pattern matches the shapes
+# a registration takes and leaves a prose mention alone: a settings.json key,
+# an enabledPlugins entry, a marketplace-add command with or without the
+# owning organization, and a github source repo. Ruling F37: the org-qualified
+# add is the shape install.sh:88 uses for diagram-design, so it is the shape a
+# real registration would take.
+check_pattern "sunstone marketplace" '"sunstone-plugins"|@sunstone-plugins|marketplace add [^ ]*sunstone-plugins|/sunstone-plugins"'
 
 forbidden_files() {
   local f
