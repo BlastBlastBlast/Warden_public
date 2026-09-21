@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# REQ-2. The installer registers the marketplaces and installs the monitor.
+. "$(dirname "$0")/lib/harness.sh"
+harness_setup
+
+# Build the tarball the curl stub will serve. Two fake executables, one README.
+export WARDEN_STUB_STAGE="$HARNESS_TMP/stage"
+mkdir -p "$WARDEN_STUB_STAGE/payload"
+printf '#!/bin/sh\necho monitor\n' > "$WARDEN_STUB_STAGE/payload/claude-context-monitor"
+printf '#!/bin/sh\necho statusline\n' > "$WARDEN_STUB_STAGE/payload/claude-statusline"
+printf 'readme\n' > "$WARDEN_STUB_STAGE/payload/README.md"
+chmod +x "$WARDEN_STUB_STAGE/payload/"claude-*
+( cd "$WARDEN_STUB_STAGE/payload" \
+  && tar czf "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_darwin_arm64.tar.gz" . )
+cp "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_darwin_arm64.tar.gz" \
+   "$WARDEN_STUB_STAGE/claude-context-monitor_1.1.0_linux_amd64.tar.gz"
+
+WARDEN_OS=darwin WARDEN_ARCH=arm64 "$REPO_DIR/install.sh" >/dev/null 2>&1
+log=$(cat "$WARDEN_STUB_LOG")
+
+# REQ-2.1
+assert_contains "$log" "claude plugin marketplace add $REPO_DIR/plugins/superpowers"
+# REQ-2.2
+assert_contains "$log" "claude plugin marketplace add cathrynlavery/diagram-design"
+# REQ-2.4
+assert_file "$HOME/bin/claude-context-monitor"
+assert_file "$HOME/bin/claude-statusline"
+if [ -x "$HOME/bin/claude-statusline" ]; then
+  pass "claude-statusline is executable"
+else
+  fail "claude-statusline is not executable"
+fi
+
+# REQ-2.5. An unsupported architecture stops the installer.
+harness_teardown
+harness_setup
+export WARDEN_STUB_STAGE="$HARNESS_TMP/stage"
+mkdir -p "$WARDEN_STUB_STAGE"
+out=$(WARDEN_OS=plan9 WARDEN_ARCH=sparc "$REPO_DIR/install.sh" 2>&1)
+status=$?
+if [ "$status" -ne 0 ]; then
+  pass "an unsupported platform exits non-zero"
+else
+  fail "an unsupported platform exited 0"
+fi
+assert_contains "$out" "no release asset for plan9/sparc"
+assert_absent "$HOME/bin/claude-statusline"
+
+# REQ-2.6. A missing prerequisite stops the installer before it archives.
+harness_teardown
+harness_setup
+export WARDEN_STUB_STAGE="$HARNESS_TMP/stage"
+mkdir -p "$WARDEN_STUB_STAGE"
+mkdir -p "$HARNESS_TMP/emptybin"
+out=$(PATH="$HARNESS_TMP/emptybin:/usr/bin:/bin" "$REPO_DIR/install.sh" 2>&1)
+status=$?
+if [ "$status" -ne 0 ]; then
+  pass "a missing prerequisite exits non-zero"
+else
+  fail "a missing prerequisite exited 0"
+fi
+assert_contains "$out" "missing prerequisite: claude"
+assert_absent "$HOME/.warden-backups"
+
+harness_exit

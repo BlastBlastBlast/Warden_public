@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Canned replies for the two URLs install.sh fetches.
+printf 'curl %s\n' "$*" >> "$WARDEN_STUB_LOG"
+
+url=""
+out=""
+prev=""
+for a in "$@"; do
+  case "$prev" in -o) out="$a" ;; esac
+  case "$a" in https://*) url="$a" ;; esac
+  prev="$a"
+done
+
+emit() { if [ -n "$out" ]; then cat > "$out"; else cat; fi; }
+
+case "$url" in
+  *api.github.com/repos/*/releases/latest)
+    emit <<'JSON'
+{"tag_name":"v1.1.0","assets":[
+ {"name":"claude-context-monitor_1.1.0_darwin_arm64.tar.gz",
+  "browser_download_url":"https://example.invalid/claude-context-monitor_1.1.0_darwin_arm64.tar.gz"},
+ {"name":"claude-context-monitor_1.1.0_linux_amd64.tar.gz",
+  "browser_download_url":"https://example.invalid/claude-context-monitor_1.1.0_linux_amd64.tar.gz"},
+ {"name":"checksums.txt",
+  "browser_download_url":"https://example.invalid/checksums.txt"}]}
+JSON
+    ;;
+  *checksums.txt)
+    stage="${WARDEN_STUB_STAGE:?stub stage not set}"
+    ( cd "$stage" && shasum -a 256 ./*.tar.gz | sed 's|\./||' ) | emit
+    ;;
+  *.tar.gz)
+    stage="${WARDEN_STUB_STAGE:?stub stage not set}"
+    name=$(basename "$url")
+    cat "$stage/$name" | emit
+    ;;
+  *)
+    exit 22
+    ;;
+esac
+exit 0
