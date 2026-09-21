@@ -13,13 +13,15 @@ REPO="$SELF_DIR"
 CFG=$(warden_config_dir)
 WARDEN_DRY_RUN=0
 SKIP_DEPS=0
+SKIP_PLUGIN_HOOK=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) WARDEN_DRY_RUN=1 ;;
     --skip-deps) SKIP_DEPS=1 ;;
+    --skip-plugin-hook) SKIP_PLUGIN_HOOK=1 ;;
     -h|--help)
-      sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *) warden_die "unknown option: $1" ;;
   esac
@@ -151,5 +153,15 @@ else
   install_plugins
   install_monitor
 fi
+
+install_git_hook() {
+  [ -d "$REPO/.git" ] || { warden_say "skip: the repository is not a git checkout"; return 0; }
+  local current
+  current=$(git -C "$REPO" config --get core.hooksPath 2>/dev/null)
+  [ "$current" = ".githooks" ] && { warden_say "keep: core.hooksPath is .githooks"; return 0; }
+  warden_run "set core.hooksPath to .githooks" \
+    git -C "$REPO" config core.hooksPath .githooks
+}
+[ "${SKIP_PLUGIN_HOOK:-0}" = "1" ] || install_git_hook
 
 warden_say "summary: $WARDEN_MADE linked, $WARDEN_KEPT kept, $WARDEN_BACKED_UP backed up"

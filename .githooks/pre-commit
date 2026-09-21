@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Refuse a commit that would publish a machine path or a private marketplace.
+repo=$(git rev-parse --show-toplevel)
+if ! bash "$repo/tests/no_machine_content.sh"; then
+  printf '\nCommit refused. The scrub check failed. Fix the files above.\n' >&2
+  exit 1
+fi
