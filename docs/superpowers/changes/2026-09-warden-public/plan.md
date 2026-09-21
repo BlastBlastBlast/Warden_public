@@ -420,7 +420,7 @@ Expected: `2 tests, 0 failed`.
 - [ ] **Step 12: Prove the scrub test can fail**
 
 ```bash
-printf '# /Users/someone/dev/x\n' >> rules/instruction-files.md
+printf '# /Users/<name>/dev/x\n' >> rules/instruction-files.md
 git add rules/instruction-files.md
 bash tests/no_machine_content.sh; echo "exit=$?"
 git checkout rules/instruction-files.md
@@ -1812,7 +1812,7 @@ and `SKIP_PLUGIN_HOOK=0` beside the other defaults.
 ```bash
 chmod +x .githooks/pre-commit
 git config core.hooksPath .githooks
-printf '\n<!-- /Users/someone/x -->\n' >> README.md
+printf '\n<!-- /Users/<name>/x -->\n' >> README.md
 git add README.md
 git commit -m "chore: this should fail"; echo "exit=$?"
 git checkout README.md

@@ -54,4 +54,45 @@ case "$archive" in
   *) fail "the archive is at $archive" ;;
 esac
 
+# REQ-3.6.6 regression, deferred minor 6. An archive that cannot be written
+# stops the install before it links anything. The uninstaller's equivalent is
+# covered at tests/uninstall_from_archive.sh; this is the missing half. The
+# chmod trick cannot work under root, so the case is skipped there.
+harness_teardown
+harness_setup
+
+printf '{"theme":"dark"}\n' > "$HOME/.claude/settings.json"
+mkdir -p "$HOME/.warden-backups"
+
+if [ "$(id -u)" = "0" ]; then
+  pass "skipped under root: chmod cannot force an archive failure"
+else
+  chmod 555 "$HOME/.warden-backups"
+  out=$("$REPO_DIR/install.sh" --skip-deps --skip-plugin-hook 2>&1)
+  rc=$?
+  # Put the permission back before any assertion can fail and skip past it.
+  chmod 755 "$HOME/.warden-backups"
+
+  if [ "$rc" -ne 0 ]; then
+    pass "the install exited non-zero when the archive failed"
+  else
+    fail "the install exited 0 when the archive failed"
+  fi
+  assert_contains "$out" "could not archive"
+  case "$out" in
+    *"summary:"*) fail "the install printed a summary after a failed archive" ;;
+    *) pass "the install printed no summary after a failed archive" ;;
+  esac
+
+  # REQ-3.6.6. Nothing was changed without an archive.
+  assert_absent "$HOME/.claude/CLAUDE.md"
+  assert_absent "$HOME/.local/bin"
+  if [ ! -L "$HOME/.claude/settings.json" ] \
+     && grep -q dark "$HOME/.claude/settings.json"; then
+    pass "settings.json is untouched"
+  else
+    fail "settings.json was touched without an archive"
+  fi
+fi
+
 harness_exit

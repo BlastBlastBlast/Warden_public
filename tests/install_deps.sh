@@ -139,4 +139,19 @@ case "$out" in
 esac
 assert_absent "$HOME/bin"
 
+# F32 regression. settings.json must not enable a plugin from a marketplace
+# install_plugins never registers. The two names are the marketplace ids the
+# two `claude plugin marketplace add` calls above produce: superpowers-dev is
+# asserted against plugins/superpowers/.claude-plugin/marketplace.json in
+# tests/vendored_license.sh, and diagram-design is the repository's own name.
+for mk in $(jq -r '.enabledPlugins | keys[]' "$REPO_DIR/settings.json" \
+            | sed 's/.*@//' | sort -u); do
+  case "$mk" in
+    superpowers-dev|diagram-design)
+      pass "enabledPlugins names the registered marketplace $mk" ;;
+    *)
+      fail "settings.json enables a plugin from $mk, which install.sh does not register" ;;
+  esac
+done
+
 harness_exit

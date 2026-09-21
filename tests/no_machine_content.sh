@@ -6,8 +6,11 @@ cd "$REPO_DIR" || exit 1
 
 check_pattern() {
   local label="$1" pattern="$2" hits
+  # The only exclusion is this file, which must hold the patterns it hunts.
+  # Nothing else is exempt: the change records under docs/superpowers/changes/
+  # used to be, and three machine paths lived there unseen by the test and by
+  # the pre-commit hook.
   hits=$(git grep -I -l -E "$pattern" -- . \
-    | grep -v '^docs/superpowers/changes/' \
     | grep -v '^tests/no_machine_content.sh$' || true)
   if [ -n "$hits" ]; then
     fail "$label found in: $(printf '%s' "$hits" | tr '\n' ' ')"
@@ -18,7 +21,11 @@ check_pattern() {
 
 check_pattern "absolute home path" '/(Users|home)/[A-Za-z0-9._-]+'
 check_pattern "orca hook block" '\.orca/agent-hooks/claude-hook|EncodedCommand JABQ'
-check_pattern "sunstone marketplace" 'sunstone-plugins'
+# REQ-6.3 forbids the marketplace, not the word. The spec states the
+# requirement and the plan quotes this test, so the pattern matches the two
+# shapes a registration takes in settings.json and the shape a script would
+# use, and leaves a prose mention alone.
+check_pattern "sunstone marketplace" '"sunstone-plugins"|@sunstone-plugins|marketplace add sunstone-plugins'
 
 forbidden_files() {
   local f

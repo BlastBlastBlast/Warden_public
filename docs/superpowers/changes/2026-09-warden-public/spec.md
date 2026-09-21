@@ -228,13 +228,12 @@ computer shows the output.*
 
 **Rules and area guides**
 
-- `/Users/trustherelwt/.claude/CLAUDE.md`, the global instruction file. It sets the branch rule,
-  the conventional commit format, the reuse rule, and the rule that verification is part of done.
-  REQ-9 exists because of that last rule.
-- `/Users/trustherelwt/dev/Warden/rules/instruction-files.md`, which governs how an author writes an
-  instruction surface. The README and the vendored skills follow it.
-- `/Users/trustherelwt/dev/Warden/output-styles/plain-technical.md`, the writing discipline. This
-  spec follows it.
+- The user-level `CLAUDE.md` in the Claude configuration directory, the global instruction file.
+  It sets the branch rule, the conventional commit format, the reuse rule, and the rule that
+  verification is part of done. REQ-9 exists because of that last rule.
+- `rules/instruction-files.md`, which governs how an author writes an instruction surface. The
+  README and the vendored skills follow it.
+- `output-styles/plain-technical.md`, the writing discipline. This spec follows it.
 
 **Policy skills**
 
