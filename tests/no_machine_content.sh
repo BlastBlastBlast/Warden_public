@@ -8,8 +8,7 @@ check_pattern() {
   local label="$1" pattern="$2" hits
   hits=$(git grep -I -l -E "$pattern" -- . \
     | grep -v '^docs/superpowers/changes/' \
-    | grep -v '^tests/no_machine_content.sh$' \
-    | grep -v '^plugins/superpowers/' || true)
+    | grep -v '^tests/no_machine_content.sh$' || true)
   if [ -n "$hits" ]; then
     fail "$label found in: $(printf '%s' "$hits" | tr '\n' ' ')"
   else
