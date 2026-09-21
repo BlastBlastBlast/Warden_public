@@ -85,4 +85,58 @@ assert_contains "$out" "checksum mismatch"
 assert_absent "$HOME/bin/claude-context-monitor"
 assert_absent "$HOME/bin/claude-statusline"
 
+# I-2 regression. --dry-run without --skip-deps fetches nothing and writes
+# nothing. INSTALL.md Step 1 runs the dry run before the Step 2 consent gate,
+# so anything it writes is written without the person's agreement (REQ-5.2).
+harness_teardown
+harness_setup
+export WARDEN_STUB_STAGE="$HARNESS_TMP/stage"
+mkdir -p "$WARDEN_STUB_STAGE"
+
+out=$(WARDEN_OS=darwin WARDEN_ARCH=arm64 \
+  "$REPO_DIR/install.sh" --dry-run --skip-plugin-hook 2>&1)
+
+# REQ-3.5. It still says what it would do.
+assert_contains "$out" "would fetch: the latest stigsb/claude-context-monitor release for darwin/arm64"
+assert_contains "$out" "would install: $HOME/bin/claude-context-monitor"
+assert_contains "$out" "would install: $HOME/bin/claude-statusline"
+assert_contains "$out" "would register the vendored superpowers marketplace"
+
+assert_absent "$HOME/bin"
+assert_absent "$HOME/.warden-backups"
+
+log=$(cat "$WARDEN_STUB_LOG")
+if [ -z "$log" ]; then
+  pass "the dry run made no curl and no claude call"
+else
+  fail "the dry run called out: $log"
+fi
+
+# I-3 regression. A download that fails stops the installer. It used to
+# return 1 into a call with no check: the installer printed its summary,
+# exited 0, and left settings.json wiring a PostToolUse hook at a binary
+# that was never installed.
+harness_teardown
+harness_setup
+export WARDEN_STUB_STAGE="$HARNESS_TMP/stage"
+mkdir -p "$WARDEN_STUB_STAGE" "$HARNESS_TMP/failbin"
+printf '#!/bin/sh\nexit 6\n' > "$HARNESS_TMP/failbin/curl"
+chmod +x "$HARNESS_TMP/failbin/curl"
+
+out=$(PATH="$HARNESS_TMP/failbin:$PATH" WARDEN_OS=darwin WARDEN_ARCH=arm64 \
+  "$REPO_DIR/install.sh" --skip-plugin-hook 2>&1)
+rc=$?
+
+if [ "$rc" -ne 0 ]; then
+  pass "a failed download exits non-zero"
+else
+  fail "a failed download exited 0"
+fi
+assert_contains "$out" "could not read the release list"
+case "$out" in
+  *"summary:"*) fail "the installer printed its summary after a failed download" ;;
+  *) pass "the installer printed no summary after a failed download" ;;
+esac
+assert_absent "$HOME/bin"
+
 harness_exit

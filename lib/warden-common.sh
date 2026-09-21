@@ -78,11 +78,22 @@ warden_backup_path() {
 WARDEN_MADE=0
 WARDEN_KEPT=0
 WARDEN_BACKED_UP=0
+WARDEN_ANNOUNCED_DIRS=""
 
 # warden_link <target> <link_path>
+# Every write goes through warden_run, so the same code path serves the real
+# run and the dry run. REQ-3.5: the preview prints the rename too.
 warden_link() {
-  local target="$1" link="$2" backup
-  mkdir -p "$(dirname "$link")"
+  local target="$1" link="$2" backup dir
+  dir=$(dirname "$link")
+  if [ ! -d "$dir" ]; then
+    # Under --dry-run the directory is never created, so announce it once.
+    case " $WARDEN_ANNOUNCED_DIRS " in
+      *" $dir "*) ;;
+      *) warden_run "mkdir: $dir" mkdir -p "$dir" || return 1
+         WARDEN_ANNOUNCED_DIRS="$WARDEN_ANNOUNCED_DIRS $dir" ;;
+    esac
+  fi
   if [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]; then
     warden_say "keep: $link"
     WARDEN_KEPT=$((WARDEN_KEPT + 1))

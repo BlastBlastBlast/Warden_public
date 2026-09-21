@@ -43,4 +43,35 @@ else
   fail "the displaced settings.json was lost"
 fi
 
+# I-1 regression. A dry run over an existing settings.json announces the
+# rename. The old preview reimplemented the loop, so it printed "would link"
+# and closed with a summary of zero: the single most alarming thing the
+# installer does was invisible.
+harness_teardown
+harness_setup
+
+printf '{"theme":"dark"}\n' > "$HOME/.claude/settings.json"
+out=$("$REPO_DIR/install.sh" --dry-run --skip-deps --skip-plugin-hook 2>&1)
+
+assert_contains "$out" \
+  "would backup: $HOME/.claude/settings.json -> $HOME/.claude/settings.json.warden-backup-"
+assert_contains "$out" "summary: would link 10, keep 0, back up 1"
+
+# And it still writes nothing.
+if [ ! -L "$HOME/.claude/settings.json" ] \
+   && [ "$(cat "$HOME/.claude/settings.json")" = '{"theme":"dark"}' ]; then
+  pass "the dry run left settings.json untouched"
+else
+  fail "the dry run touched settings.json"
+fi
+moved=$(ls "$HOME/.claude/"settings.json.warden-backup-* 2>/dev/null | wc -l | tr -d ' ')
+if [ "$moved" = "0" ]; then
+  pass "the dry run renamed nothing"
+else
+  fail "the dry run took $moved backups"
+fi
+assert_absent "$HOME/.claude/docs"
+assert_absent "$HOME/.local/bin"
+assert_absent "$HOME/.warden-backups"
+
 harness_exit

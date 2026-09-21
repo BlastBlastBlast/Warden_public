@@ -34,13 +34,21 @@ warden_say "repository: $REPO"
 warden_say "claude config: $CFG"
 
 check_prereqs() {
-  local need missing
+  local need missing tools
   missing=""
-  for need in git jq curl tar claude; do
+  # tar writes the archive and git wires the pre-commit hook, so both are
+  # needed even with --skip-deps.
+  tools="git tar"
+  # Only the dependency step reaches the plugin CLI, the release API and the
+  # checksum tool.
+  if [ "$SKIP_DEPS" != "1" ]; then
+    tools="$tools jq curl claude"
+    command -v shasum >/dev/null 2>&1 || command -v sha256sum >/dev/null 2>&1 \
+      || missing="$missing shasum"
+  fi
+  for need in $tools; do
     command -v "$need" >/dev/null 2>&1 || missing="$missing $need"
   done
-  command -v shasum >/dev/null 2>&1 || command -v sha256sum >/dev/null 2>&1 \
-    || missing="$missing shasum"
   if [ -n "$missing" ]; then
     for need in $missing; do
       printf 'warden: missing prerequisite: %s\n' "$need" >&2
@@ -48,7 +56,7 @@ check_prereqs() {
     exit 1
   fi
 }
-[ "$SKIP_DEPS" = "1" ] || check_prereqs
+check_prereqs
 
 # REQ-3.6.6. No change without an archive.
 if [ "$WARDEN_DRY_RUN" = "1" ]; then
@@ -60,24 +68,17 @@ else
   warden_say "archive: $ARCHIVE"
 fi
 
-if [ "$WARDEN_DRY_RUN" = "1" ]; then
-  for name in $WARDEN_SURFACES; do
-    warden_say "would link: $CFG/$name -> $REPO/$name"
-  done
-  for name in $WARDEN_DOC_SURFACES; do
-    warden_say "would link: $CFG/docs/$name -> $REPO/docs/$name"
-  done
-  warden_say "would link: $HOME/.local/bin/warden-handoff -> $REPO/bin/warden-handoff"
-else
-  for name in $WARDEN_SURFACES; do
-    warden_link "$REPO/$name" "$CFG/$name" || warden_die "could not link $name"
-  done
-  for name in $WARDEN_DOC_SURFACES; do
-    warden_link "$REPO/docs/$name" "$CFG/docs/$name" || warden_die "could not link docs/$name"
-  done
-  warden_link "$REPO/bin/warden-handoff" "$HOME/.local/bin/warden-handoff" \
-    || warden_die "could not link warden-handoff"
-fi
+# One linking path for both modes. warden_link routes every write through
+# warden_run, so the dry run prints what the real run would do — the backup
+# rename included. REQ-3.5.
+for name in $WARDEN_SURFACES; do
+  warden_link "$REPO/$name" "$CFG/$name" || warden_die "could not link $name"
+done
+for name in $WARDEN_DOC_SURFACES; do
+  warden_link "$REPO/docs/$name" "$CFG/docs/$name" || warden_die "could not link docs/$name"
+done
+warden_link "$REPO/bin/warden-handoff" "$HOME/.local/bin/warden-handoff" \
+  || warden_die "could not link warden-handoff"
 
 install_plugins() {
   warden_run "register the vendored superpowers marketplace" \
@@ -107,9 +108,22 @@ install_monitor() {
     *)             arch="${WARDEN_ARCH:-$(uname -m)}" ;;
   esac
 
+  # REQ-3.5. A dry run fetches nothing and creates nothing: the steps below
+  # write to $TMPDIR and to $HOME/bin, and INSTALL.md runs the dry run before
+  # the person has agreed to anything.
+  if [ "$WARDEN_DRY_RUN" = "1" ]; then
+    warden_say "would fetch: the latest $WARDEN_MONITOR_REPO release for $os/$arch"
+    warden_say "would verify: that release against its checksums.txt"
+    warden_say "would install: $HOME/bin/claude-context-monitor"
+    warden_say "would install: $HOME/bin/claude-statusline"
+    return 0
+  fi
+
   api="https://api.github.com/repos/$WARDEN_MONITOR_REPO/releases/latest"
-  tmp=$(mktemp -d "${TMPDIR:-/tmp}/warden-monitor.XXXXXX") || return 1
-  curl -fsSL -o "$tmp/release.json" "$api" || { rm -rf "$tmp"; return 1; }
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/warden-monitor.XXXXXX") \
+    || warden_die "could not make a temporary directory for the download"
+  curl -fsSL -o "$tmp/release.json" "$api" \
+    || { rm -rf "$tmp"; warden_die "could not read the release list at $api"; }
 
   asset_url=$(jq -r --arg s "_${os}_${arch}.tar.gz" \
     '.assets[] | select(.name | endswith($s)) | .browser_download_url' \
@@ -152,7 +166,7 @@ if [ "$SKIP_DEPS" = "1" ]; then
   warden_say "skipping the dependencies"
 else
   install_plugins
-  install_monitor
+  install_monitor || warden_die "could not install the context monitor"
 fi
 
 install_git_hook() {
@@ -173,4 +187,8 @@ install_git_hook() {
 }
 [ "${SKIP_PLUGIN_HOOK:-0}" = "1" ] || install_git_hook
 
-warden_say "summary: $WARDEN_MADE linked, $WARDEN_KEPT kept, $WARDEN_BACKED_UP backed up"
+if [ "$WARDEN_DRY_RUN" = "1" ]; then
+  warden_say "summary: would link $WARDEN_MADE, keep $WARDEN_KEPT, back up $WARDEN_BACKED_UP"
+else
+  warden_say "summary: $WARDEN_MADE linked, $WARDEN_KEPT kept, $WARDEN_BACKED_UP backed up"
+fi
