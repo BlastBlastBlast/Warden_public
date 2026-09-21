@@ -12,15 +12,59 @@ REPO="$SELF_DIR"
 CFG=$(warden_config_dir)
 WARDEN_DRY_RUN=0
 
+FROM_ARCHIVE=""
+WANT_ARCHIVE=0
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) WARDEN_DRY_RUN=1 ;;
+    --from-archive)
+      WANT_ARCHIVE=1
+      case "${2:-}" in
+        ""|--*) ;;
+        *) FROM_ARCHIVE="$2"; shift ;;
+      esac ;;
     -h|--help) sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) warden_die "unknown option: $1" ;;
   esac
   shift
 done
 export WARDEN_DRY_RUN
+
+restore_from_archive() {
+  local archive="$1" parent base ex tmp
+  [ -f "$archive" ] || warden_die "no such archive: $archive"
+  # REQ-4.5.2
+  warden_say "archiving the current state first"
+  warden_say "archive: $(warden_archive_config "$CFG" "$(warden_backup_dir)")"
+
+  # REQ-4.5.3. Remove only what the archive can put back.
+  for entry in "$CFG"/* "$CFG"/.[!.]*; do
+    [ -e "$entry" ] || continue
+    base=$(basename "$entry")
+    skip=0
+    for ex in $WARDEN_EXCLUDES; do
+      [ "$base" = "$ex" ] && skip=1
+    done
+    [ "$skip" = "1" ] && continue
+    warden_run "remove: $entry" rm -rf "$entry"
+  done
+
+  parent=$(dirname "$CFG")
+  warden_run "restore: $archive -> $CFG" tar xzf "$archive" -C "$parent"
+  warden_say "restored from $archive"
+}
+
+if [ "$WANT_ARCHIVE" = "1" ]; then
+  if [ -z "$FROM_ARCHIVE" ]; then
+    warden_say "archives under $(warden_backup_dir):"
+    ls -1t "$(warden_backup_dir)"/claude-*.tar.gz 2>/dev/null | head -10 \
+      || warden_say "  none"
+    exit 0
+  fi
+  restore_from_archive "$FROM_ARCHIVE"
+  exit 0
+fi
 
 # unlink_one <link_path>
 # Removes the link only when it points into this repository. REQ-4.1, REQ-4.3.
