@@ -77,9 +77,27 @@ sets an unsupported architecture and asserts a non-zero exit and the printed rea
   counts the links it made, the links it kept, and the backups it took.
 - **REQ-3.5** The installer MUST support `--dry-run`. With that flag the installer MUST print
   every action and MUST write nothing.
+- **REQ-3.6** The installer MUST archive the whole Claude configuration directory before it makes
+  the first change. The archive gives the person one way back, whatever the installer touched.
+  - **REQ-3.6.1** The installer MUST write the archive to
+    `$HOME/.warden-backups/claude-<UTC timestamp>.tar.gz`. The archive MUST sit outside the Claude
+    configuration directory, so a later install does not capture an earlier archive.
+  - **REQ-3.6.2** The installer MUST exclude the directories that hold cache and session state.
+    Those are `projects/`, `sessions/`, `shell-snapshots/`, `paste-cache/`, `file-history/`,
+    `telemetry/` and `cache/`. They are large and the person does not need them to revert.
+  - **REQ-3.6.3** The installer MUST follow no symbolic link when it writes the archive. It MUST
+    store each link as a link.
+  - **REQ-3.6.4** The installer MUST print the archive path.
+  - **REQ-3.6.5** The installer MUST take a new archive on every run that changes something. The
+    installer MUST NOT remove an earlier archive.
+  - **REQ-3.6.6** The installer MUST stop when it cannot write the archive. The installer MUST NOT
+    change the Claude configuration directory without an archive.
 
 *Proof: `tests/install_idempotent.sh` runs the installer twice against the same temporary `HOME`.
-The test asserts that the second run takes no backup, and that the summary counts zero new links.*
+The test asserts that the second run takes no backup, and that the summary counts zero new links.
+`tests/install_snapshot.sh` seeds a temporary `HOME` with files and a link, runs the installer,
+and asserts that the archive exists, that it holds the seeded files, that it stores the link as a
+link, and that it holds no excluded directory.*
 
 **REQ-4** The uninstaller MUST return the Claude configuration directory to its earlier state.
 
@@ -88,9 +106,19 @@ The test asserts that the second run takes no backup, and that the summary count
 - **REQ-4.3** The uninstaller MUST NOT remove a file that the installer did not create.
 - **REQ-4.4** The uninstaller MUST NOT remove the plugins or the monitor binaries. The
   uninstaller MUST print the commands that remove those, so the person decides.
+- **REQ-4.5** The uninstaller MUST support `--from-archive <path>`. With that flag the
+  uninstaller MUST replace the Claude configuration directory with the content of the archive that
+  REQ-3.6 wrote.
+  - **REQ-4.5.1** The uninstaller MUST list the newest archives under `$HOME/.warden-backups/`
+    when the person gives no path.
+  - **REQ-4.5.2** The uninstaller MUST archive the current state before it restores an older one.
+  - **REQ-4.5.3** The uninstaller MUST NOT remove a directory that REQ-3.6.2 excluded. A restore
+    returns the configuration, not the session history.
 
 *Proof: `tests/uninstall_restores.sh` seeds a temporary `HOME` with a real `settings.json`, runs
-the installer, runs the uninstaller, and asserts that the original file returns byte for byte.*
+the installer, runs the uninstaller, and asserts that the original file returns byte for byte.
+`tests/uninstall_from_archive.sh` runs the installer, edits the linked files, restores from the
+archive, and asserts that the seeded state returns and that `projects/` survives.*
 
 **REQ-5** The procedure MUST let Claude perform the install with the person's consent.
 
@@ -117,7 +145,8 @@ organization.
   from it.
 - **REQ-6.4** The repository MUST NOT contain `RESTORE-shepherd.txt`.
 - **REQ-6.5** The repository MUST NOT contain `skills/synced/`.
-- **REQ-6.6** The repository MUST NOT contain a compiled binary.
+- **REQ-6.6** The repository MUST NOT contain a compiled binary. An image file is not a compiled
+  binary. `assets/warden.png` is the one binary asset the repository carries.
 
 *Proof: `tests/no_machine_content.sh` greps the tracked files for `/Users/`, `/home/`, `.orca`,
 `sunstone`, and for any file that `file` reports as an executable. The test fails on a match.*
@@ -158,6 +187,10 @@ file, asserts the plugin name, and asserts that `NOTICE.md` names both repositor
   Windows is not supported.
 - **REQ-8.6** The README MUST state the licence of the repository and the licence of the
   vendored plugin.
+- **REQ-8.7** The README MUST show `assets/warden.png` at the top, above the first heading. The
+  image MUST carry alt text that describes the picture.
+- **REQ-8.8** The README MUST tell the person where the installer writes the archive, and MUST
+  give the command that restores from it.
 
 *Proof: `tests/readme_sections.sh` asserts that each required table heading exists, and that the
 external tool table holds the ten named repositories.*
@@ -232,6 +265,10 @@ The two rules cannot both hold without a guard. The options:
 I recommend C1-a. It keeps the property the current setup has and it makes REQ-6 enforceable.
 Lars owns this decision.
 
+**Ruling, 2026-09-21: C1-a.** The repository keeps the symbolic link. The repository ships a
+pre-commit hook that runs `tests/no_machine_content.sh`, and the installer offers to install that
+hook.
+
 **C2. The intent says the installer targets macOS. The later instruction says "as general as
 possible".**
 
@@ -241,6 +278,9 @@ alternative is to keep macOS only and to reject a Linux run.
 
 I recommend the wider scope, because it costs one `uname` branch in the installer. Lars owns this
 decision.
+
+**Ruling, 2026-09-21: the wider scope.** The installer supports macOS and Linux. Windows stays a
+non-goal.
 
 ## Open questions carried from intent
 
@@ -255,8 +295,18 @@ decision.
 
 ## Design notes
 
-The repository keeps the layout that `~/dev/Warden` already has, and adds four things:
-`install.sh`, `uninstall.sh`, `INSTALL.md`, and `plugins/superpowers/`.
+The repository keeps the layout that `~/dev/Warden` already has, and adds six things:
+`install.sh`, `uninstall.sh`, `INSTALL.md`, `plugins/superpowers/`, `tests/` and
+`assets/warden.png`.
+
+The archive under REQ-3.6 and the per-path backup under REQ-3.1 answer two different questions.
+The per-path backup restores one file the installer replaced. The archive restores the whole
+configuration directory, including a file the installer never touched. The uninstaller uses the
+per-path backup first, because that path changes the least. `--from-archive` is the way back when
+the person wants the earlier machine rather than the earlier file.
+
+`assets/warden.png` is 1200 pixels wide and 420 kilobytes. The source file is 2544 pixels wide and
+9.1 megabytes, which is too large for a repository that a person clones to configure a laptop.
 
 The two tools need no change. `bin/warden-statusline` already reads
 `CONTEXT_STATUSLINE`, with `$HOME/bin/claude-statusline` as its default. `bin/warden-handoff`
