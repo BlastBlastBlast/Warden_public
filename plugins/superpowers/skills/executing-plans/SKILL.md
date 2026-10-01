@@ -7,9 +7,9 @@ description: Use when you have a written implementation plan to execute in a sep
 
 ## Overview
 
-Load plan, review critically, execute the slices in order, report when complete.
-An architectural change stops once, after slice one, so your human partner can see
-the shape of the work before the rest is built.
+Load plan, review critically, execute the waves in order, report when complete.
+The session runs each wave's tasks one at a time, commits each task, and ends
+with the final review.
 
 **Announce at start:** "I'm using the executing-plans skill to implement this plan."
 
@@ -24,26 +24,25 @@ the shape of the work before the rest is built.
 4. If concerns: Raise them with your human partner before starting
 5. If no concerns: Create todos for the plan items and proceed
 
-### Step 2: Execute Slices
+### Step 2: Execute Waves
 
-For each slice:
-1. Mark as in_progress
-2. Follow each step exactly (plan has bite-sized steps)
-3. Run verifications as specified
-4. Run the slice's demonstration command
-5. Mark as completed
+For each wave in the plan's Waves table:
+1. Run the wave's tasks in order
+2. For each task in the wave:
+   - Follow each step exactly (plan has bite-sized steps)
+   - Run verifications as specified
+   - Commit the task when it completes
+3. Run the wave's test command once, when all tasks complete
+4. Move to the next wave
 
-**Stop after slice one of an architectural change.** When the plan came from a
-spec, run slice one's demonstration command, show your human partner the
-output, and wait for them to continue, redirect, or stop. Do not start slice two
-on your own. Once they approve the direction, the remaining slices run without
-pausing.
+Run each task's steps in order, and run tests when each task ends — a failing
+test comes back to that task before you move to the next one.
 
-A bounded change has no spec and does not stop. Run it to the end.
+### Step 3: Final Review and Complete Development
 
-### Step 3: Complete Development
+After all waves complete:
 
-After all slices complete and verified:
+**Review the whole branch diff** from the branch base. Check that each top-level requirement is met, correctness holds, and quality is solid. This is the final review that superpowers:subagent-driven-development describes (Final Review): one whole-branch review, one fix pass, and one scoped re-review of the fix diff.
 
 **If this change has a `spec.md`:**
 - Announce: "I'm using the reconciling-specs skill to check the spec against what shipped."

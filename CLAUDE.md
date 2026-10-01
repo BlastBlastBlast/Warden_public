@@ -25,6 +25,21 @@ hand over, something outside your sandbox, or a decision that is mine.
 
 Reads, edits, tests, builds and lints are yours. Handing those back makes me the executor.
 
+## Keep going
+
+When a step does not need my input, keep going. Put status notes in the same message as your next
+action. Stop and ask only when you cannot continue without me, or before anything destructive:
+deleting data, force-pushing, or changing anything outside the repository you are working in.
+
+## Which model does the coding
+
+Sonnet 5.5 is the coding model. When a skill names a model tier, map it like this:
+
+- Cheap tier and standard tier: `sonnet`. Do not send coding work to `haiku`.
+- Most capable tier: `opus`. Keep it for architecture, design, and the final whole-branch review.
+
+Name the model on every dispatch. A subagent with no model gets `CLAUDE_CODE_SUBAGENT_MODEL`.
+
 ## Reuse before you create
 
 - Search before you write. Grep for the function name, the error string, the existing pattern.

@@ -52,9 +52,9 @@ alone, because the archive never held them.
 
 | Path | Links to | Holds |
 |---|---|---|
-| `CLAUDE.md` | the config directory | Always-on instructions, under 60 lines |
-| `settings.json` | the config directory | Attribution, permissions, wired hooks, subagent caps |
-| `hooks/` | the config directory | Two wired secret guards, one unwired branch guard |
+| `CLAUDE.md` | the config directory | Always-on instructions, 72 lines (limit 200) |
+| `settings.json` | the config directory | Attribution, permissions, wired hooks, subagent model and caps, Opus 5.5 effort |
+| `hooks/` | the config directory | Two secret guards and the default-branch guard, all wired |
 | `output-styles/` | the config directory | `plain-technical`, the writing discipline |
 | `rules/` | the config directory | `instruction-files.md`, path-scoped |
 | `skills/` | the config directory | Skills the superpowers plugin does not cover |
@@ -71,8 +71,9 @@ alone, because the archive never held them.
 | `guard-secrets-read.sh` | PreToolUse Bash | A shell command that puts a secret file in front of the model. Excludes `ls`, `wc`, `cp`, and `.env.example`. |
 | `claude-context-monitor` | PostToolUse | Nothing. It warns at 35 percent context remaining and goes critical at 25 percent. |
 | `warden-handoff hook` | SessionStart | Nothing. It offers a waiting handoff after `/clear`, once. |
+| `guard-default-branch.sh` | PreToolUse Write, Edit, NotebookEdit | An edit to a file whose repository is on its default branch. It prints the `git switch -c` command. |
 
-`hooks/guard-default-branch.sh` ships but is not wired. It denies edits on the default branch.
+Test the branch guard with `bash hooks/tests/guard-default-branch.test.sh`.
 
 ## Skills
 
@@ -84,7 +85,6 @@ alone, because the archive never held them.
 | `eli5` | You ask for a dead-simple picture explainer. |
 | `emil-design-eng` | You build product UI: dashboards, tables, forms, wizards. |
 | `handoff` | You end a session and want to continue in a fresh one. |
-| `model-update` | A new Claude model ships, or you evaluate the setup against one. |
 | `review-animations` | You review motion and transitions. |
 | `source-authority` | You are about to state a version, a flag, or a default from memory. |
 
@@ -93,7 +93,7 @@ alone, because the archive never held them.
 Two lines:
 
 ```
-Opus 5 │ Warden ⎇ main
+Opus 5.5 │ Warden ⎇ main
 5h 7% · 4h24m   7d 41% · 2d5h
 ```
 

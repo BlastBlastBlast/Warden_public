@@ -17,7 +17,7 @@ This skill makes the spec true again before the work leaves the branch.
 
 ## When To Run
 
-Run this when the change has a `spec.md` and review has passed.
+Run this after the final review and its scoped re-review, when the change has a `spec.md`, to compare the top-level requirements with the branch diff.
 
 **Skip it entirely when the change has no spec.** A bounded change went from intent straight
 to a plan and has no contract to reconcile. Go to `superpowers:finishing-a-development-branch`.

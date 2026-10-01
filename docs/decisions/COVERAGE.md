@@ -80,7 +80,7 @@ enforcement layer** — it is the only one of the three with `agents/`, `command
 | Repo adoption + templates | `repo-adoption` + `templates/` | — | — |
 | Written policy → skill | `/policy` | — | — |
 | Inline review comments | `crit`, `crit-cli` | — | — |
-| Model-release re-evaluation | `model-update` | — | — |
+| Model-release re-evaluation | — (`model-update` removed 2026-10-01) | — | — |
 | Explainer artifacts | `eli5` | — | — |
 | Frontend/product design | `design-taste-frontend`, `emil-design-eng`, `review-animations` | — | — |
 

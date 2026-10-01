@@ -30,9 +30,9 @@ Subagent (general-purpose):
     git diff [BASE_SHA]..[HEAD_SHA]
     ```
 
-    ## Read-Only Review
+    ## Mutations Only In A Temporary Worktree
 
-    Your review is read-only on this checkout. Do not mutate the working tree, the index, HEAD, or branch state in any way. Use tools like `git show`, `git diff`, and `git log` to inspect history. If you need a working copy of a different revision, check it out into a separate temporary directory (e.g. `git worktree add /tmp/review-[SHA] [SHA]`) — never move HEAD on this checkout.
+    Do not change the index, HEAD, or branch state on this checkout. Use tools like `git show`, `git diff`, and `git log` to inspect history. If you need a working copy of a different revision, check it out into a separate temporary directory (e.g. `git worktree add /tmp/review-[SHA] [SHA]`) — never move HEAD on this checkout. The working tree stays as you found it, with one exception. You may mutate code to test a risk you name, for example whether a suspected defect is actually uncaught. Make at most 3 mutations in this review, in this working tree, one at a time: change one line, run the one test that should catch it, then revert it before the next. Never mutate while another agent is writing to this tree, and never commit, stage, stash, or move HEAD. End your report with the output of `git status --porcelain`, which must show none of your changes. A mutation that no test catches is a finding: name the line, the change that went unnoticed, and the test that would catch it.
 
     ## You Do Not Dispatch Subagents
 

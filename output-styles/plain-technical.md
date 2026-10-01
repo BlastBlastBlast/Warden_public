@@ -26,6 +26,7 @@ Write every sentence so it explains itself. Based on ASD-STE100 Simplified Techn
 ## Structure
 
 - Lead with the outcome. The first sentence answers "what happened" or "what did you find".
+- If you need something from me, say it first, before the outcome.
 - Numbered list for a sequence. Bulleted list for a set. Never a wall of prose.
 - One step per list item. An item with an "and" in it is usually two steps.
 - Match the length of a written document to the substance it carries.

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Extract one task's full text from an implementation plan into a file the
 # implementer reads in one call, so the task text never has to be pasted
-# through the controller's context.
+# through the controller's context. Accepts a plain task ID.
 #
-# Usage: task-brief PLAN_FILE TASK_NUMBER [OUTFILE]
-# Default OUTFILE: <repo-root>/.superpowers/sdd/<plan-basename>/task-<N>-brief.md
+# Usage: task-brief PLAN_FILE TASK_ID [OUTFILE]
+# Default OUTFILE: <repo-root>/.superpowers/sdd/<plan-basename>/task-<ID>-brief.md
 # (per plan and per worktree; concurrent runs of the SAME plan in the same
 # working tree share it).
 set -euo pipefail
 
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
-  echo "usage: task-brief PLAN_FILE TASK_NUMBER [OUTFILE]" >&2
+  echo "usage: task-brief PLAN_FILE TASK_ID [OUTFILE]" >&2
   exit 2
 fi
 
@@ -26,9 +26,21 @@ else
 fi
 
 awk -v n="$n" '
+  BEGIN {
+    id = n
+    gsub(/\./, "\\.", id)
+    taskre = "^#+[ \t]+Task[ \t]+" id "([^0-9.]|$)"
+  }
   /^```/ { infence = !infence }
-  !infence && /^#+[ \t]+Task[ \t]+[0-9]+/ {
-    intask = ($0 ~ ("^#+[ \t]+Task[ \t]+" n "([^0-9]|$)"))
+  !infence && /^#+[ \t]/ {
+    match($0, /^#+/)
+    level = RLENGTH
+    if ($0 ~ taskre) {
+      intask = 1
+      tasklevel = level
+    } else if (intask && level <= tasklevel) {
+      intask = 0
+    }
   }
   intask { print }
 ' "$plan" > "$out"

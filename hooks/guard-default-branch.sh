@@ -13,6 +13,14 @@ input=$(cat)
 if command -v jq >/dev/null 2>&1; then
   cwd=$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)
   [ -n "${cwd:-}" ] && cd "$cwd" 2>/dev/null
+  # The edited file's repository decides, not the session's. Walk up to the nearest existing
+  # directory, because a Write can target a file in a directory that does not exist yet.
+  target=$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' 2>/dev/null)
+  if [ -n "${target:-}" ]; then
+    dir=$(dirname "$target")
+    while [ ! -d "$dir" ] && [ "$dir" != "/" ] && [ "$dir" != "." ]; do dir=$(dirname "$dir"); done
+    cd "$dir" 2>/dev/null
+  fi
 fi
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0

@@ -1,9 +1,8 @@
 # Enforcement tiers: turning CLAUDE.md prose into hooks, rules, and skills
 
 How to decide where a piece of guidance belongs, and how to author each tier. This is the
-procedure behind the 2026-08 Opus 5 alignment; the `model-update` skill applies it on every
-model release, and the `instruction-files` rule loads the short version whenever an
-instruction file is edited.
+procedure behind the 2026-08 Opus 5 alignment. The `instruction-files` rule loads the short
+version whenever an instruction file is edited.
 
 ## The classification procedure
 
