@@ -60,7 +60,7 @@ The 20 skills reference machinery that did not come with them. Nothing here work
 Shepherd is a system, not a bag of skills. The chain skills (`capture-intent` → `author-spec` →
 `author-plan` → `implement-plan` → `review-change` → `finish-branch`) only function with M1–M4.
 The standalone ones that work today are `eli5`, `design-taste-frontend`, `emil-design-eng`,
-`review-animations`, `model-update`, `brainstorming`, `systematic-debugging`,
+`review-animations`, `brainstorming`, `systematic-debugging`,
 `test-driven-development`, `receiving-review`, `writing-skills`.
 
 ## 4. Gap analysis — shepherd's non-skill assets

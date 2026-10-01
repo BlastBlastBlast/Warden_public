@@ -28,6 +28,12 @@ too literally and emphasis inflation causes overtriggering. State the criterion 
 keep them trigger-sharp, third-person, with negative scope, and never summarize the skill's
 workflow in them.
 
+Three instruction shapes fail on Opus 5.5 (`~/.claude/docs/references/opus5.5-claude-md-reference.md`).
+"Think carefully" lines are dead weight: the model always thinks, and effort sets how much. "Show
+your reasoning in the reply" can be refused as `reasoning_extraction`; ask for "why, in three
+sentences" instead. "Avoid a generic look" swaps one default for another; name the patterns to
+leave out.
+
 ## Authoring a skill
 
 Personal: `~/.claude/skills/<name>/SKILL.md`. Project: `.claude/skills/<name>/SKILL.md`. Managed

@@ -72,7 +72,7 @@ they belong in a project's `.claude/settings.json`, not in the global setup. Wor
 |---|---|---|
 | Code intelligence plugin | Claude greps to find where a symbol is defined | `/plugin`, per language |
 | Status line showing context use | You want to see the window filling | `settings.json` → `statusLine` |
-| `effortLevel` sweep | You carried an Opus 4.8 default over | Opus 5 docs say re-run the sweep; use `low`/`medium` liberally |
+| `effortLevel` sweep | You carried an Opus 4.8 default over | Opus 5 docs say re-run the sweep; use `low`/`medium` liberally. Opus 5.5 defaults to `medium` and ignores a top-level `effortLevel`; set it per model under `modelSettings.claude-opus-5-5` |
 | `/doctor` | Any CLAUDE.md you have not pruned lately | Proposes trims for checked-in files |
 | Project `.claude/settings.json` | A repo with a real test command | Stop hook or `/goal` |
 

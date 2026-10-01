@@ -9,7 +9,7 @@ prompt. `report` writes text back and changes nothing.
 |---|---|---|---|---|
 | `guard-secrets.sh` | PreToolUse Write\|Edit | Denies a write carrying one of three high-confidence secret shapes: a `BEGIN PRIVATE KEY` header, an `AKIA`/`ASIA` AWS key id, or a bearer token of 32+ chars. Skips `fixtures/`, `testdata/`, `*.example`, `*.sample`. Names the shape, never the value. | **deny** | **KEPT, wired** |
 | `guard-secrets-read.sh` | PreToolUse Bash | Denies a shell command that puts a secret file's contents in front of the model. Exists because `permissions.deny` on Read is not extended to every Bash command — measured 2026-09-14 against 2.1.270, `cat .env` is blocked but `head -1 .env` returns the secret. Excludes `ls`/`stat`/`wc` (metadata), `cp`/`mv` (moving is not reading), and `.env.example` and friends. | **deny** | **KEPT, wired** |
-| `guard-default-branch.sh` | PreToolUse Write\|Edit\|NotebookEdit | Denies a file edit while HEAD is the repo's default branch, and prints the `git switch -c` command. | **deny** | **scrapped — file kept, not wired.** See note below. |
+| `guard-default-branch.sh` | PreToolUse Write\|Edit\|NotebookEdit | Denies a file edit while HEAD is the repo's default branch, and prints the `git switch -c` command. | **deny** | **wired 2026-09-23** with the Opus 5.5 keep-going rule. Judges the edited file's repository. See note below. |
 | `guard-test-files.sh` | PreToolUse Write\|Edit | Prompts before editing a test that already exists. A new test never prompts. An edit whose `old_string` survives inside `new_string` is growth, not weakening, and passes. | ask | scrapped, not imported |
 | `guard-stage-order.sh` | PreToolUse Write\|Edit | Denies writing a stage artifact before the previous stage finished — no `spec.md` without `intent.md`. | deny | scrapped, not imported |
 | `guard-protected-paths.sh` | PreToolUse Write\|Edit | Denies edits to paths a project declares in `.claude/guardrails.json`. No-ops when undeclared. | deny | scrapped, not imported |
@@ -26,6 +26,9 @@ text back. They are out anyway because both belong to the chain, and `config-dri
 `~/.claude/settings.json` is a symlink into a repo.
 
 ### Note on the default-branch guard
+
+**Resolved 2026-09-23:** wired, because the new keep-going rule in `CLAUDE.md` means fewer stops
+(`OPUS-5-5-EVALUATION.md`, E9 and E23). The text below is the earlier decision record.
 
 Scrapping it drops enforcement of your own rule 2, "never work directly in main, branch first".
 The rule still exists as prose in `CLAUDE.md`, which is a request rather than a guarantee. Three ways

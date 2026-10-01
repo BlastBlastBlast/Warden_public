@@ -35,11 +35,14 @@ Verified 2026-09-20 against the live files, not from memory.
 
 ## Gaps that remain
 
-**G1 — the branch rule is stated, not enforced.** `hooks/guard-default-branch.sh` exists, is tested,
+**G1 — resolved 2026-09-23: the guard is wired** (`OPUS-5-5-EVALUATION.md`, E23). Earlier text:
+the branch rule is stated, not enforced. `hooks/guard-default-branch.sh` exists, is tested,
 and is **not wired**. Item 2 is therefore a request rather than a guarantee. Wire it under
 `PreToolUse` with matcher `Write|Edit|NotebookEdit`, or leave it as prose deliberately.
 
-**G2 — no git denials in `permissions`.** The original relied on prose for "do not merge PRs". The
+**G2 — resolved 2026-09-23 for merges and force pushes** (`OPUS-5-5-EVALUATION.md`, E22):
+`Bash(gh pr merge *)` and six `git push` force shapes are denied; `--force-with-lease` is not.
+`sudo` and `rm -rf ~` stay open. Earlier text: no git denials in `permissions`. The original relied on prose for "do not merge PRs". The
 pruning pass that cut the guard hooks also removed every `Bash(...)` deny rule, including
 `Bash(gh pr merge*)`, `Bash(git push -f*)`, `Bash(sudo*)` and `Bash(rm -rf ~*)`. Those are static
 config with zero context cost and no effect until they fire — a different thing from a blocking
