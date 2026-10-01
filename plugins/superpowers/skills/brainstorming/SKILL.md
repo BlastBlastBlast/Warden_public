@@ -145,7 +145,7 @@ One change gets one directory:
 docs/superpowers/changes/<YYYY-MM>-<slug>/
 ├── intent.md     what someone wants, and why
 ├── spec.md       the numbered requirements (architectural only)
-└── plan.md       the vertical slices, in order
+└── plan.md       the tasks, grouped in waves
 ```
 
 Create the directory when it is absent. Commit each document on its own — that commit is the

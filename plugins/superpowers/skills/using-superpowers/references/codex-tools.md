@@ -21,7 +21,7 @@ disagree.
   Full-history forks accept `model` and `reasoning_effort` overrides
   (only `agent_type` is refused there) — isolated forks are the SDD
   default for context hygiene, not because overrides require them.
-- **Fix rounds:** resume the implementer with `followup_task` — it
+- **Fix wave:** resume the implementer with `followup_task` — it
   delivers your message, triggers a turn, and transparently reloads a
   child the harness evicted. Never dispatch a fresh implementer on the
   theory that a spawned agent cannot be messaged again; on V2 it
@@ -30,7 +30,7 @@ disagree.
   evicted automatically when slots are needed; leaving them unclosed
   costs nothing. Only V1 sessions have `close_agent` — there, close
   reviewers when their review returns, and close each implementer
-  after its task's review passes.
+  after the final review's fix wave completes.
 - **Model names:** never copy a model name from a skill, table, or old
   session into `spawn_agent` without checking it against your current
   spawn allowlist — V2 accepts only V2-capable presets and hard-errors
