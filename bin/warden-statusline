@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Two-line status line.
+# Three-line status line.
 #
 #   line 1  stigsb/claude-context-monitor's claude-statusline — model, task, dir, context bar
 #   line 2  plan usage limits, which claude-statusline does not show
+#   line 3  per-session token usage, via warden-session-tokens --line, dimmed
 #
 # Wire with:  "statusLine": {"type":"command",
 #               "command":"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/bin/warden-statusline"}
@@ -11,7 +12,9 @@
 # rate_limits appears only for claude.ai Pro and Max subscribers, and only after the first API
 # response in a session. Each window is independently optional, and Claude Code drops a window
 # once its resets_at passes — so every field is read with a // empty fallback and line 2 is
-# simply absent when there is nothing to say.
+# simply absent when there is nothing to say. Line 3 is likewise absent when transcript_path is
+# empty or warden-session-tokens has nothing to report, and a failure in that helper never removes
+# lines 1 or 2.
 
 set -uo pipefail
 
@@ -71,5 +74,23 @@ for window in five_hour:5h seven_day:7d spend_limit:spend; do
   line="${line}${seg}"
 done
 
-[ -n "$line" ] || exit 0
-printf '%s\n' "$line"
+if [ -n "$line" ]; then
+  printf '%s\n' "$line"
+fi
+
+# --- line 3 -----------------------------------------------------------------
+# Per-session token usage, subagents included, from warden-session-tokens. Resolved through
+# $0's real location (readlink -f) so this still finds its sibling helper when invoked through
+# a symlink, e.g. ~/.claude/....
+path=$(field '.transcript_path')
+if [ -n "$path" ]; then
+  self=$(readlink -f -- "$0" 2>/dev/null) || self="$0"
+  tokens=$("$(dirname -- "$self")/warden-session-tokens" --line "$path" 2>/dev/null)
+  if [ -n "$tokens" ]; then
+    printf '%s%s%s\n' "$DIM" "$tokens" "$RESET"
+  fi
+fi
+
+# A helper failure, a missing transcript, or nothing to show on lines 2/3 must never make the
+# status line itself appear to fail — Claude Code blanks the whole line on a non-zero exit.
+exit 0
