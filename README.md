@@ -60,7 +60,7 @@ alone, because the archive never held them.
 | `skills/` | the config directory | Skills the superpowers plugin does not cover |
 | `docs/references/` | the config directory | Reference files the rules load |
 | `docs/decisions/` | the config directory | Why this setup is shaped the way it is |
-| `bin/` | the config directory | `warden-handoff`, `warden-statusline` |
+| `bin/` | the config directory | `warden-handoff`, `warden-statusline`, `warden-session-tokens`, `warden-usage` |
 | `plugins/superpowers/` | not linked | The vendored method plugin |
 
 ## Wired hooks
@@ -90,16 +90,41 @@ Test the branch guard with `bash hooks/tests/guard-default-branch.test.sh`.
 
 ## Status line
 
-Two lines:
+Three lines:
 
 ```
 Opus 5.5 │ Warden ⎇ main
 5h 7% · 4h24m   7d 41% · 2d5h
+opus-5.5 out 236  new 21k  cached 34k
 ```
 
 Line one is `claude-statusline` from `stigsb/claude-context-monitor`. Line two is ours: plan
 usage from the `rate_limits` payload, dim under 50 percent, yellow from 50, red from 80. Line
 two is absent when Claude Code sends no rate limit.
+
+Line three is also ours, from `warden-session-tokens --line`. It counts the tokens of the current
+session per model, subagents included: `out` is output tokens, `new` is input plus cache write,
+and `cached` is cache read. Line three is dim. It is absent when there is nothing to report, and a
+failure in the helper never removes lines one or two.
+
+### Usage across sessions
+
+`warden-usage` runs a pinned [ryoppippi/ccusage](https://github.com/ryoppippi/ccusage) through
+`npx` for reports across all sessions on this machine:
+
+- `warden-usage` gives a daily report.
+- `warden-usage week` gives a weekly report.
+- `warden-usage month` gives a monthly report.
+- `warden-usage session` gives a report per session.
+
+The installer does not put `warden-usage` on your `PATH`. To run it from anywhere, link it:
+
+```
+ln -s "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/bin/warden-usage" ~/.local/bin/warden-usage
+```
+
+Test the three scripts with `bash bin/tests/warden-statusline.test.sh`,
+`bash bin/tests/warden-session-tokens.test.sh` and `bash bin/tests/warden-usage.test.sh`.
 
 ## Tools this setup draws on
 

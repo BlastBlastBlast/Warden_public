@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# warden-usage [day|week|month|session] [ccusage flags...]
+#
+# Thin wrapper around a pinned ccusage (via npx) for token usage reports across
+# all Claude Code sessions on this machine: by day, week, month, or session,
+# split by model.
+#
+# Examples:
+#   warden-usage                        # daily report
+#   warden-usage week --since 20260901
+#
+# No first argument, or a first argument starting with "-", reports daily.
+# An unrecognized first word is an error.
+
+set -uo pipefail
+
+CCUSAGE_VERSION=20.0.26
+
+usage() {
+  cat <<'EOF'
+Usage: warden-usage [day|week|month|session] [ccusage flags...]
+
+Reports Claude Code token usage across all sessions on this machine, via a
+pinned ccusage. Reports:
+  day      daily usage
+  week     weekly usage
+  month    monthly usage
+  session  per-session usage
+
+Example:
+  warden-usage week --since 20260901
+EOF
+}
+
+if [ "${1-}" = "-h" ] || [ "${1-}" = "--help" ]; then
+  usage
+  exit 0
+fi
+
+report=daily
+if [ "$#" -gt 0 ] && [ "${1#-}" = "$1" ]; then
+  # First argument present and does not start with "-": it names a report.
+  case "$1" in
+    day) report=daily ;;
+    week) report=weekly ;;
+    month) report=monthly ;;
+    session) report=session ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+fi
+
+exec npx -y "ccusage@${CCUSAGE_VERSION}" "$report" --breakdown --offline "$@"

@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# Per-session token helper, subagent transcripts included.
+#
+#   warden-session-tokens [--json|--line] <transcript-path>
+#
+# <transcript-path> is <dir>/<id>.jsonl. Files counted: that transcript plus every *.jsonl file
+# found recursively under <dir>/<id>/ (subagents at any spawn depth). agents is the count of
+# agent-*.jsonl files found under <dir>/<id>/.
+#
+# Usage lines are deduplicated by .message.id, falling back to .requestId, then .uuid, keeping
+# the last line in file order (streamed responses report their final output_tokens). Lines with
+# .message.model == "<synthetic>" are excluded.
+#
+# Results are cached under WARDEN_TOKENS_CACHE_DIR (default "${TMPDIR:-/tmp}/warden-tokens") as
+# <cache-dir>/<id>.json, keyed by a signature of every found file's path, size and mtime. A warm
+# cache hit never runs jq over the transcripts (it is read with plain text tools).
+#
+# Exit 0 with empty output when the transcript does not exist or has no usage lines.
+# Exit 2 with a usage message on stderr for a missing argument or an unknown flag.
+
+set -uo pipefail
+
+usage() {
+  echo "usage: warden-session-tokens [--json|--line] <transcript-path>" >&2
+}
+
+format="json"
+path=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --json) format="json"; shift ;;
+    --line) format="line"; shift ;;
+    --) shift; if [ "$#" -gt 0 ]; then path="$1"; shift; fi; break ;;
+    -*) usage; exit 2 ;;
+    *) path="$1"; shift ;;
+  esac
+done
+
+if [ -z "$path" ]; then
+  usage
+  exit 2
+fi
+
+cache_dir="${WARDEN_TOKENS_CACHE_DIR:-${TMPDIR:-/tmp}/warden-tokens}"
+
+# Pure parameter-expansion dirname/basename: avoids two forks on every run (warm path included).
+case "$path" in
+  */*) dir="${path%/*}" ;;
+  *) dir="." ;;
+esac
+base="${path##*/}"
+id="${base%.jsonl}"
+session_dir="$dir/$id"
+
+# --- file discovery -----------------------------------------------------------------------------
+files=()
+[ -f "$path" ] && files+=("$path")
+if [ -d "$session_dir" ]; then
+  while IFS= read -r f; do
+    files+=("$f")
+  done < <(find "$session_dir" -type f -name '*.jsonl' | sort)
+fi
+
+if [ "${#files[@]}" -eq 0 ]; then
+  exit 0
+fi
+
+# Count from the files array already discovered above; avoids a second find + wc over the tree.
+agents=0
+for f in "${files[@]}"; do
+  case "${f##*/}" in
+    agent-*.jsonl) agents=$((agents + 1)) ;;
+  esac
+done
+
+# --- signature (no jq: a warm cache must call no jq at all) -------------------------------------
+# One batched stat over every file instead of a per-file fork: this is the warm path's dominant
+# cost (measured ~71ms for 47 per-file forks vs ~4ms batched).
+compute_signature() {
+  local out
+  out=$(stat -f '%N %z %m' "${files[@]}" 2>/dev/null) || out=$(stat -c '%n %s %Y' "${files[@]}" 2>/dev/null)
+  printf '%s' "$out" | tr '\n' '\037'
+}
+
+current_sig=$(compute_signature)
+cache_file="$cache_dir/$id.json"
+
+if [ -f "$cache_file" ]; then
+  cached_sig=$(sed -n '1p' "$cache_file")
+  if [ "$cached_sig" = "$current_sig" ]; then
+    case "$format" in
+      json) sed -n '2p' "$cache_file" ;;
+      line) sed -n '3p' "$cache_file" ;;
+    esac
+    exit 0
+  fi
+fi
+
+# --- recompute ------------------------------------------------------------------------------------
+# Read raw lines (-R) and parse each individually with fromjson, instead of letting jq parse the
+# whole stream as JSON: a single half-written line (Claude Code appends to a live transcript) or
+# any other malformed line would otherwise abort the parse and silently lose every line's tokens.
+# Lines that fail to parse, or that carry none of message.id/requestId/uuid, are dropped rather
+# than crashing the reduce (which cannot use a null key).
+json_result=$(grep -h '"usage"' -- "${files[@]}" 2>/dev/null | jq -R -c -n --argjson agents "$agents" '
+  [inputs
+    | (try fromjson catch empty)
+    | select(.type == "assistant" and (.message.usage? != null) and (.message.model? != "<synthetic>"))
+    | select((.message.id // .requestId // .uuid) != null)]
+  | reduce .[] as $l ({}; .[($l.message.id // $l.requestId // $l.uuid)] = $l)
+  | [.[]]
+  | group_by(.message.model)
+  | map({
+      model: .[0].message.model,
+      input: ([.[] | (.message.usage.input_tokens // 0)] | add),
+      output: ([.[] | (.message.usage.output_tokens // 0)] | add),
+      cache_write: ([.[] | (.message.usage.cache_creation_input_tokens // 0)] | add),
+      cache_read: ([.[] | (.message.usage.cache_read_input_tokens // 0)] | add)
+    })
+  | sort_by(.output) | reverse
+  | {models: ., agents: $agents}
+' 2>/dev/null) || true
+
+models_count=$(printf '%s' "$json_result" | jq -r '.models | length' 2>/dev/null)
+
+if [ -z "$models_count" ] || [ "$models_count" = "0" ]; then
+  exit 0
+fi
+
+# --- number and label formatting for --line -------------------------------------------------------
+model_label() {
+  local m="$1"
+  m="${m#claude-}"
+  if [[ "$m" =~ ^(.*)-[0-9]{8}$ ]]; then
+    m="${BASH_REMATCH[1]}"
+  fi
+  if [[ "$m" =~ ^(.*)-([0-9]+)-([0-9]+)$ ]]; then
+    m="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+  fi
+  printf '%s' "$m"
+}
+
+fmt_num() {
+  local n="$1"
+  if [ "$n" -lt 1000 ]; then
+    printf '%d' "$n"
+  elif [ "$n" -lt 1000000 ]; then
+    awk -v n="$n" 'BEGIN{printf "%.0fk", n/1000}'
+  else
+    awk -v n="$n" 'BEGIN{
+      m = n/1000000
+      if (m < 10) printf "%.1fM", m
+      else printf "%.0fM", m
+    }'
+  fi
+}
+
+build_line() {
+  local line="" model input output cache_write cache_read label out_s new_s cached_s seg
+  while IFS=$'\t' read -r model input output cache_write cache_read; do
+    [ -z "$model" ] && continue
+    label=$(model_label "$model")
+    out_s=$(fmt_num "$output")
+    new_s=$(fmt_num "$((input + cache_write))")
+    cached_s=$(fmt_num "$cache_read")
+    seg="$label out $out_s  new $new_s  cached $cached_s"
+    if [ -z "$line" ]; then line="$seg"; else line="$line │ $seg"; fi
+  done < <(printf '%s' "$json_result" | jq -r '.models[] | [.model, .input, .output, .cache_write, .cache_read] | @tsv')
+
+  if [ "$agents" -gt 0 ]; then
+    local agent_s
+    if [ "$agents" -eq 1 ]; then agent_s="1 agent"; else agent_s="$agents agents"; fi
+    if [ -z "$line" ]; then line="$agent_s"; else line="$line │ $agent_s"; fi
+  fi
+  printf '%s' "$line"
+}
+
+line_result=$(build_line)
+
+# --- cache write (atomic) --------------------------------------------------------------------------
+mkdir -p "$cache_dir"
+tmp_cache="$cache_dir/$id.json.tmp.$$"
+printf '%s\n%s\n%s\n' "$current_sig" "$json_result" "$line_result" > "$tmp_cache"
+mv "$tmp_cache" "$cache_file"
+
+case "$format" in
+  json) printf '%s\n' "$json_result" ;;
+  line) printf '%s\n' "$line_result" ;;
+esac
